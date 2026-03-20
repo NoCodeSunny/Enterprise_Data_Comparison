@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-data_compare.utils.helpers
+edcp.utils.helpers
 ──────────────────────────
 General-purpose utility functions used across the package:
   - Directory creation
@@ -17,7 +17,7 @@ from typing import Dict, List
 
 import pandas as pd
 
-from data_compare.utils.logger import get_logger
+from edcp.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

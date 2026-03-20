@@ -22,9 +22,8 @@ app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 try:
     import importlib, sys as _sys
     _FW2 = str(Path(__file__).parent.parent.parent / "edcp")
-    _FW3 = str(Path(__file__).parent.parent.parent.parent / "edcp")
     _UI2 = str(Path(__file__).parent.parent)
-    for _pp in (_FW2, _FW3, _UI2):
+    for _pp in (_FW2, _UI2):
         if _pp not in _sys.path: _sys.path.insert(0, _pp)
     _v1_mod = importlib.import_module('api.v1.batch_api')
     _v1_bp  = _v1_mod.v1
@@ -194,7 +193,7 @@ def _run_job(jid, cfg):
 # Legacy API
 @app.route("/api/health")
 def health():
-    return jsonify({"status":"ok","version":"2.0","platform":"DataComparePro",
+    return jsonify({"status":"ok","version":"3.0.0","platform":"DataComparePro",
                     "timestamp":datetime.utcnow().isoformat()})
 
 @app.route("/api/detect-columns",methods=["POST"])

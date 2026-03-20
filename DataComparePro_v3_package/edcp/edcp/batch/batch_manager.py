@@ -559,6 +559,15 @@ class BatchManager:
                 self._audit.log_batch_completed(batch)
 
             self._persist_batch(batch)
+            # Finalize audit log (make immutable) on terminal state
+            if self._audit and batch.status in (
+                BatchStatus.SUCCESS, BatchStatus.FAILED,
+                BatchStatus.PARTIAL_SUCCESS, BatchStatus.CANCELLED,
+            ):
+                try:
+                    self._audit.finalize_batch(batch.batch_id)
+                except Exception:
+                    pass   # best-effort
             logger.info(
                 f"[BatchManager] {batch.batch_id} → {batch.status} "
                 f"({batch.successful_jobs}/{batch.total_jobs} succeeded)"

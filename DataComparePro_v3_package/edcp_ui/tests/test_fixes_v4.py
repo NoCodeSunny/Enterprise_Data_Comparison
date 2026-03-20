@@ -597,3 +597,302 @@ class TestFix12TechnicalDebt(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+# ─── Remaining Fix 1: Audit subsystem exists and compiles ────────────────────
+
+class TestRemainingFix1AuditSubsystem(unittest.TestCase):
+
+    def test_enterprise_audit_logger_exists(self):
+        path = Path(__file__).parent.parent.parent / "edcp" / "edcp" / "audit" / "enterprise_audit_logger.py"
+        self.assertTrue(path.exists(), "enterprise_audit_logger.py must exist")
+
+    def test_audit_capability_exists(self):
+        path = Path(__file__).parent.parent.parent / "edcp" / "edcp" / "capabilities" / "audit" / "audit_capability.py"
+        self.assertTrue(path.exists(), "edcp/capabilities/audit/audit_capability.py must exist")
+
+    def test_data_compare_audit_capability_exists(self):
+        path = Path(__file__).parent.parent.parent / "edcp" / "data_compare" / "capabilities" / "audit" / "audit_capability.py"
+        self.assertTrue(path.exists(), "data_compare/capabilities/audit/audit_capability.py must exist")
+
+    def test_audit_logger_importable(self):
+        from edcp.audit.enterprise_audit_logger import EnterpriseAuditLogger
+        self.assertTrue(callable(EnterpriseAuditLogger))
+
+    def test_audit_logger_has_finalize_batch(self):
+        from edcp.audit.enterprise_audit_logger import EnterpriseAuditLogger
+        self.assertTrue(hasattr(EnterpriseAuditLogger, 'finalize_batch'),
+                        "EnterpriseAuditLogger must have finalize_batch() method")
+
+    def test_batch_api_audit_import_works(self):
+        import py_compile
+        path = str(Path(__file__).parent.parent / "api" / "v1" / "batch_api.py")
+        py_compile.compile(path, doraise=True)
+
+
+# ─── Remaining Fix 2: edcp canonical tree uses edcp.* not data_compare.* ────
+
+class TestRemainingFix2CanonicalImports(unittest.TestCase):
+
+    def test_utils_logger_uses_edcp_namespace(self):
+        logger_path = Path(__file__).parent.parent.parent / "edcp" / "edcp" / "utils" / "logger.py"
+        content = logger_path.read_text()
+        self.assertNotIn("from data_compare.utils.logger import get_logger", content,
+                         "edcp/utils/logger.py must not import from data_compare.utils.logger")
+
+    def test_utils_helpers_uses_edcp_logger(self):
+        helpers_path = Path(__file__).parent.parent.parent / "edcp" / "edcp" / "utils" / "helpers.py"
+        content = helpers_path.read_text()
+        self.assertNotIn("from data_compare.utils.logger import", content,
+                         "edcp/utils/helpers.py must import from edcp.utils.logger")
+
+    def test_utils_validation_uses_edcp_imports(self):
+        val_path = Path(__file__).parent.parent.parent / "edcp" / "edcp" / "utils" / "validation.py"
+        content = val_path.read_text()
+        self.assertNotIn("from data_compare.utils.logger import", content)
+        self.assertNotIn("from data_compare.utils.helpers import", content)
+
+    def test_cli_prog_is_edcp(self):
+        cli_path = Path(__file__).parent.parent.parent / "edcp" / "edcp" / "cli.py"
+        content = cli_path.read_text()
+        self.assertNotIn('prog="data_compare"', content,
+                         "CLI prog must not be data_compare")
+
+    def test_cli_description_uses_edcp(self):
+        cli_path = Path(__file__).parent.parent.parent / "edcp" / "edcp" / "cli.py"
+        content = cli_path.read_text()
+        self.assertNotIn(
+            'Enterprise Capability-Based Data Comparison Framework v3.0',
+            content,
+            "CLI must use DataComparePro/edcp description",
+        )
+
+
+# ─── Remaining Fix 3: Security applied to v1 endpoints ──────────────────────
+
+class TestRemainingFix3V1Security(_APIBase):
+
+    def test_no_stale_fw3_path_in_app(self):
+        """app.py must not insert /home/claude/edcp (wrong path) into sys.path."""
+        app_path = Path(__file__).parent.parent / "api" / "app.py"
+        content = app_path.read_text()
+        self.assertNotIn(
+            'parent.parent.parent.parent / "edcp"',
+            content,
+            "app.py must not insert the original /home/claude/edcp into sys.path",
+        )
+
+    def test_v1_batch_create_has_auth_check(self):
+        """POST /api/v1/batch must call _check_v1_auth() or equivalent."""
+        api_path = Path(__file__).parent.parent / "api" / "v1" / "batch_api.py"
+        content = api_path.read_text()
+        self.assertIn("_check_v1_auth", content,
+                      "batch_api.py must have v1 auth helper")
+
+    def test_v1_cancel_has_auth_check(self):
+        """POST /api/v1/batch/<id>/cancel must be protected."""
+        api_path = Path(__file__).parent.parent / "api" / "v1" / "batch_api.py"
+        content = api_path.read_text()
+        # Check auth appears somewhere in the cancel function context
+        cancel_idx = content.find('"/batch/<batch_id>/cancel"')
+        if cancel_idx > 0:
+            func_region = content[cancel_idx:cancel_idx + 500]
+            self.assertIn("auth_err", func_region,
+                          "cancel endpoint must check auth")
+
+    def test_v1_cors_not_unconditional_wildcard(self):
+        """CORS must use configured origin, not unconditional *."""
+        app_path = Path(__file__).parent.parent / "api" / "app.py"
+        content = app_path.read_text()
+        # Should have the configurable CORS pattern
+        self.assertIn("_ALLOWED_ORIGIN", content,
+                      "app.py must use configurable CORS origin")
+        # The wildcard should be a fallback not unconditional
+        self.assertNotIn(
+            'r.headers["Access-Control-Allow-Origin"]  = "*"',
+            content,
+            "CORS must not unconditionally use wildcard *",
+        )
+
+
+# ─── Remaining Fix 4: Validation warnings in both endpoints ─────────────────
+
+class TestRemainingFix4ValidationWarnings(_APIBase):
+
+    def test_validate_endpoint_returns_warnings_for_empty_keys(self):
+        """POST /api/v1/batch/validate must return warnings (not errors) for empty keys."""
+        import tempfile, os
+        tmp = tempfile.mkdtemp()
+        prod = Path(tmp) / "p.csv"
+        dev  = Path(tmp) / "d.csv"
+        prod.write_text("ID,Val\n1,A\n")
+        dev.write_text("ID,Val\n1,A\n")
+        try:
+            r = self.client.post(
+                "/api/v1/batch/validate",
+                data=json.dumps({"comparisons": [{
+                    "prod_path": str(prod), "dev_path": str(dev), "keys": []
+                }]}),
+                content_type="application/json",
+            )
+            d = json.loads(r.data)
+            # Must succeed (not 400) since empty keys is a warning not a blocker
+            self.assertEqual(r.status_code, 200, f"Expected 200 for empty-keys warning, got {r.status_code}: {d}")
+            self.assertTrue(d.get("success"), "validate must succeed with only warnings")
+            # Warnings should be in response
+            self.assertIn("warnings", d.get("data", {}),
+                          "validate response must include 'warnings' field")
+        finally:
+            import shutil; shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_create_batch_uses_blocking_errors_not_all_errors(self):
+        """batch_api.py must use blocking_errors() not raw errors list."""
+        api_path = Path(__file__).parent.parent / "api" / "v1" / "batch_api.py"
+        content = api_path.read_text()
+        self.assertIn("blocking_errors", content,
+                      "batch_api must use blocking_errors()")
+        self.assertIn("warnings", content,
+                      "batch_api must surface warnings in response")
+
+
+# ─── Remaining Fix 5: Version strings consistent ────────────────────────────
+
+class TestRemainingFix5VersionStrings(_APIBase):
+
+    def test_health_endpoint_returns_v3(self):
+        """GET /api/v1/health must return version 3.0.0."""
+        r = self.client.get("/api/v1/health")
+        d = json.loads(r.data)
+        self.assertEqual(r.status_code, 200)
+        version = d.get("data", {}).get("version", "")
+        self.assertEqual(version, "3.0.0",
+                         f"Health endpoint must return 3.0.0, got {version!r}")
+
+    def test_legacy_health_returns_v3(self):
+        """GET /api/health must also return version 3.0.0."""
+        r = self.client.get("/api/health")
+        d = json.loads(r.data)
+        self.assertEqual(r.status_code, 200)
+        version = d.get("version", "")
+        self.assertEqual(version, "3.0.0",
+                         f"Legacy health must return 3.0.0, got {version!r}")
+
+    def test_no_stale_v2_in_api_files(self):
+        """API files must not have stale version strings v2.0 or 2.0.0."""
+        for fname in ["app.py", "v1/batch_api.py"]:
+            path = Path(__file__).parent.parent / "api" / fname
+            if not path.exists():
+                continue
+            content = path.read_text()
+            # These are the stale strings we replaced
+            self.assertNotIn('"version": "2.0.0"', content,
+                             f"{fname} must not have version 2.0.0")
+            self.assertNotIn('"version":"2.0"', content,
+                             f"{fname} must not have version 2.0")
+
+
+# ─── Remaining Fix 6: Audit immutability lifecycle ──────────────────────────
+
+class TestRemainingFix6AuditImmutability(unittest.TestCase):
+
+    def setUp(self):
+        self._d = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._d.name)
+
+    def tearDown(self):
+        try:
+            self._d.cleanup()
+        except Exception:
+            pass
+
+    def test_audit_file_stays_writable_during_execution(self):
+        """Audit file must accept multiple appends before finalize."""
+        from edcp.audit.enterprise_audit_logger import EnterpriseAuditLogger
+        from edcp.batch.batch_manager import BatchRecord, BatchStatus
+        from datetime import datetime, timezone
+
+        audit = EnterpriseAuditLogger(self.tmp / "audit")
+        from datetime import datetime, timezone as _tz
+        batch = BatchRecord(batch_id="BATCH_IMMUT_TEST", jobs=[],
+                            execution_mode="sequential", max_workers=1,
+                            created_at=datetime.now(_tz.utc))
+        batch.status = BatchStatus.RUNNING
+
+        # First write
+        audit.log_batch_created(batch)
+        # Second write to same log file — must succeed (file still writable)
+        try:
+            audit.log_batch_completed(batch)
+            wrote_twice = True
+        except PermissionError:
+            wrote_twice = False
+        self.assertTrue(wrote_twice,
+                        "Audit file must accept multiple writes before finalize_batch()")
+
+    def test_finalize_batch_makes_file_readonly(self):
+        """After finalize_batch(), file must be read-only (on non-root systems)."""
+        import os
+        from edcp.audit.enterprise_audit_logger import EnterpriseAuditLogger
+        from edcp.batch.batch_manager import BatchRecord, BatchStatus
+        from datetime import datetime, timezone
+
+        audit = EnterpriseAuditLogger(self.tmp / "audit")
+        from datetime import datetime, timezone as _tz
+        batch = BatchRecord(batch_id="BATCH_FINAL_TEST", jobs=[],
+                            execution_mode="sequential", max_workers=1,
+                            created_at=datetime.now(_tz.utc))
+        batch.status = BatchStatus.SUCCESS
+        audit.log_batch_created(batch)
+        audit.finalize_batch(batch.batch_id)
+
+        log_files = list((self.tmp / "audit").rglob("*.jsonl"))
+        self.assertTrue(len(log_files) > 0, "Audit log file must exist")
+        log_file = log_files[0]
+
+        if os.getuid() != 0:  # Non-root only
+            mode = log_file.stat().st_mode
+            owner_write = bool(mode & 0o200)
+            self.assertFalse(owner_write,
+                             f"After finalize_batch(), file must be read-only; mode={oct(mode)}")
+
+
+# ─── Remaining Fix 7: Technical debt — no stale paths, compileall clean ─────
+
+class TestRemainingFix7TechnicalDebt(unittest.TestCase):
+
+    def test_app_py_no_fw3_stale_path(self):
+        """app.py must not insert 4-level-up 'edcp' path (stale /home/claude/edcp)."""
+        app_path = Path(__file__).parent.parent / "api" / "app.py"
+        content = app_path.read_text()
+        self.assertNotIn(
+            'parent.parent.parent.parent / "edcp"',
+            content,
+            "Stale _FW3 path must be removed from app.py"
+        )
+
+    def test_pre_flight_loaded_from_correct_package(self):
+        """PreFlightValidator must come from DataComparePro_v3_package, not original edcp."""
+        from edcp.validation.pre_flight import PreFlightValidator
+        import inspect
+        src_file = inspect.getfile(PreFlightValidator)
+        self.assertIn("DataComparePro_v3_package", src_file,
+                      f"PreFlightValidator loaded from wrong location: {src_file}")
+
+    def test_blocking_errors_accessible_on_validator(self):
+        """PreFlightValidator must have blocking_errors() and warnings() methods."""
+        from edcp.validation.pre_flight import PreFlightValidator
+        v = PreFlightValidator()
+        self.assertTrue(hasattr(v, 'blocking_errors'),
+                        "PreFlightValidator must have blocking_errors() method")
+        self.assertTrue(hasattr(v, 'warnings'),
+                        "PreFlightValidator must have warnings() method")
+
+    def test_all_packages_compile_clean(self):
+        """All three package trees must compile without errors."""
+        import compileall
+        pkg_root = Path(__file__).parent.parent.parent
+        for tree in ["edcp", "framework_tests"]:
+            ok = compileall.compile_dir(str(pkg_root / tree), quiet=2, force=False)
+            self.assertTrue(ok, f"compileall failed on {tree}/")
+        ok = compileall.compile_dir(str(Path(__file__).parent.parent), quiet=2, force=False)
+        self.assertTrue(ok, "compileall failed on edcp_ui/")

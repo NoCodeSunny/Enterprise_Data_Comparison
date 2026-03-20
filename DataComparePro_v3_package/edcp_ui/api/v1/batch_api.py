@@ -61,6 +61,37 @@ _validator = PreFlightValidator()
 # ── blueprint ─────────────────────────────────────────────────────────────────
 v1 = Blueprint("v1", __name__, url_prefix="/api/v1")
 
+# ── Security helpers ────────────────────────────────────────────────────────
+def _check_v1_auth():
+    """Return 401 if EDCP_API_TOKEN is set and request lacks valid X-API-Key."""
+    import os as _os
+    _token = _os.environ.get("EDCP_API_TOKEN", "")
+    if not _token:
+        return None  # auth disabled
+    if request.headers.get("X-API-Key", "") != _token:
+        return _err("UNAUTHORIZED", "Valid X-API-Key header required.",
+                    suggestion="Add X-API-Key header.", status=401)
+    return None
+
+
+def _check_v1_path(path_str: str):
+    """Return 403 if path is outside EDCP_ALLOWED_ROOTS (when set)."""
+    import os as _os
+    from pathlib import Path as _P
+    roots_raw = _os.environ.get("EDCP_ALLOWED_ROOTS", "")
+    if not roots_raw:
+        return None
+    roots = [r.strip() for r in roots_raw.split(",") if r.strip()]
+    p = _P(path_str).resolve()
+    for root in roots:
+        try:
+            p.relative_to(_P(root).resolve())
+            return None
+        except ValueError:
+            continue
+    return _err("PATH_FORBIDDEN", f"Path outside allowed roots.", status=403)
+
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -107,6 +138,8 @@ def _get_batch_or_404(batch_id: str):
 @v1.route("/batch", methods=["POST"])
 def create_batch():
     """POST /api/v1/batch — Create and submit a new comparison batch."""
+    auth_err = _check_v1_auth()
+    if auth_err: return auth_err
     t0 = time.time()
     body = request.get_json(force=True, silent=True) or {}
 
@@ -118,13 +151,15 @@ def create_batch():
                     suggestion="Provide at least 1 comparison spec with prod_path and dev_path.")
 
     # Pre-flight validation (F-VALID-001 to F-VALID-006)
-    errors = _validator.validate_batch(comparisons)
-    if errors:
+    all_issues  = _validator.validate_batch(comparisons)
+    blocking    = _validator.blocking_errors(all_issues)
+    warnings    = _validator.warnings(all_issues)
+    if blocking:
         return _err(
             "VALIDATION_FAILED",
-            f"{len(errors)} validation error(s) found. Batch not started.",
-            details=[e.to_dict() for e in errors],
-            suggestion="Fix all validation errors and resubmit.",
+            f"{len(blocking)} validation error(s) found. Batch not started.",
+            details=[e.to_dict() for e in all_issues],
+            suggestion="Fix all blocking validation errors and resubmit.",
         )
 
     try:
@@ -155,6 +190,7 @@ def create_batch():
         "jobs_queued":          batch.total_jobs,
         "estimated_completion": eta,
         "check_status_url":     f"/api/v1/batch/{batch.batch_id}",
+        "warnings":             [w.to_dict() for w in warnings] if warnings else [],
     }, status=202, t0=t0)
 
 
@@ -174,17 +210,20 @@ def validate_batch_only():
         return _err("INVALID_REQUEST", "comparisons list is required.",
                     suggestion="Provide at least 1 comparison spec.")
 
-    errors = _validator.validate_batch(comparisons)
-    if errors:
+    all_issues  = _validator.validate_batch(comparisons)
+    blocking    = _validator.blocking_errors(all_issues)
+    warnings    = _validator.warnings(all_issues)
+    if blocking:
         return _err(
             "VALIDATION_FAILED",
-            f"{len(errors)} validation error(s) found.",
-            details=[e.to_dict() for e in errors],
-            suggestion="Fix all validation errors before submitting.",
+            f"{len(blocking)} blocking error(s) found.",
+            details=[e.to_dict() for e in all_issues],
+            suggestion="Fix all blocking validation errors before submitting.",
         )
     return _ok({
         "valid": True,
         "comparisons_checked": len(comparisons),
+        "warnings": [w.to_dict() for w in warnings],
         "message": "All comparisons are valid and ready to submit.",
     }, t0=t0)
 
@@ -232,6 +271,8 @@ def cancel_preview(batch_id: str):
 @v1.route("/batch/<batch_id>/cancel", methods=["POST"])
 def cancel_batch(batch_id: str):
     """POST /api/v1/batch/<id>/cancel — Cancel a running batch."""
+    auth_err = _check_v1_auth()
+    if auth_err: return auth_err
     t0   = time.time()
     body = request.get_json(force=True, silent=True) or {}
     reason = body.get("reason", "User requested cancellation")
@@ -258,6 +299,8 @@ def cancel_batch(batch_id: str):
 @v1.route("/batch/<batch_id>/pause", methods=["POST"])
 def pause_batch(batch_id: str):
     """POST /api/v1/batch/<id>/pause — Pause a running batch."""
+    auth_err = _check_v1_auth()
+    if auth_err: return auth_err
     t0 = time.time()
     batch, err = _get_batch_or_404(batch_id)
     if err: return err
@@ -332,6 +375,10 @@ def get_job(job_id: str):
     Job IDs are globally unique (format: BATCH_<id>_JOB_<n>).
     Optionally pass ?batch_id=XXX for an explicit batch-scoped lookup.
     """
+    auth_err = _check_v1_auth()
+    if auth_err: return auth_err
+    auth_err = _check_v1_auth()
+    if auth_err: return auth_err
     t0 = time.time()
     batch_id_hint = request.args.get("batch_id", "")
     batches, _ = _batch_manager.list_batches(limit=1000)
@@ -384,6 +431,8 @@ def get_job_logs(job_id: str):
 @v1.route("/job/<job_id>/skip", methods=["POST"])
 def skip_job(job_id: str):
     """POST /api/v1/job/<id>/skip — Mark a failed job as skipped."""
+    auth_err = _check_v1_auth()
+    if auth_err: return auth_err
     t0 = time.time()
     batches, _ = _batch_manager.list_batches(limit=1000)
     for batch in batches:
@@ -406,7 +455,7 @@ def health():
     """GET /api/v1/health — Health check."""
     return _ok({
         "status":  "ok",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "platform":"DataComparePro",
     })
 
@@ -415,7 +464,7 @@ def health():
 def config_schema():
     """GET /api/v1/config/schema — Return the supported YAML config schema."""
     return _ok({
-        "version": "1.0",
+        "version": "3.0.0",
         "schema": {
             "comparisons": "list of comparison specs",
             "execution": {
@@ -429,7 +478,7 @@ def config_schema():
             },
         },
         "example_yaml": """
-version: "1.0"
+version: "3.0.0"
 name: "Monthly Validation"
 comparisons:
   - name: "Customer Data"

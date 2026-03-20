@@ -189,8 +189,8 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="data-compare",
-        description="Enterprise Capability-Based Data Comparison Framework v3.0",
+        prog="edcp",
+        description="DataComparePro (edcp) v3.0.0 — Enterprise Data Comparison Platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

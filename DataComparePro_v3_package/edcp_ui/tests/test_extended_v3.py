@@ -761,16 +761,8 @@ class TestSecurity(unittest.TestCase):
             return
 
         log_file = log_files[0]
-        file_mode = log_file.stat().st_mode
 
-        # Verify chmod 444 was applied (owner write bit 0o200 must NOT be set)
-        owner_write = bool(file_mode & stat.S_IWUSR)
-        self.assertFalse(
-            owner_write,
-            f"SEC-03: Audit log file is writable (mode={oct(file_mode)}) — chmod 444 not applied",
-        )
-
-        # Verify log content is valid JSON regardless of permissions
+        # Verify log content is valid JSON BEFORE finalizing
         lines = log_file.read_text().splitlines()
         self.assertTrue(len(lines) > 0, "SEC-03: Audit log is empty")
         for line in lines:
@@ -778,13 +770,24 @@ class TestSecurity(unittest.TestCase):
                 parsed = json.loads(line)
                 self.assertIn("action", parsed, "SEC-03: Audit log missing 'action' field")
 
+        # Call finalize_batch() to trigger immutability (chmod 444)
+        # This is the new lifecycle: writable during execution, immutable after terminal state
+        audit.finalize_batch(batch.batch_id)
+
+        file_mode = log_file.stat().st_mode
+        # Verify chmod 444 was applied after finalize
+        owner_write = bool(file_mode & stat.S_IWUSR)
+        self.assertFalse(
+            owner_write,
+            f"SEC-03: Audit log still writable after finalize_batch() (mode={oct(file_mode)})",
+        )
+
         # On non-root systems: write attempt must raise PermissionError
-        # On root systems (CI): chmod is correctly applied — root bypasses it by design
         import os as _os
         if _os.getuid() != 0:
             try:
                 log_file.write_text("tampered")
-                self.fail("SEC-03: Was able to write to chmod-444 audit log")
+                self.fail("SEC-03: Was able to write to finalized audit log")
             except PermissionError:
                 pass   # Expected — immutability enforced
 

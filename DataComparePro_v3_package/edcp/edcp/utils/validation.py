@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-data_compare.utils.validation
+edcp.utils.validation
 ──────────────────────────────
 Validates the parsed InputSheet configuration DataFrame before the
 orchestrator begins dispatching batches.
@@ -15,8 +15,8 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from data_compare.utils.helpers import normalized_colnames_mapping
-from data_compare.utils.logger import get_logger
+from edcp.utils.helpers import normalized_colnames_mapping
+from edcp.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

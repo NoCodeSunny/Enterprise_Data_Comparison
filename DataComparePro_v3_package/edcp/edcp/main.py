@@ -32,8 +32,8 @@ logger = get_logger(__name__)
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="data_compare",
-        description="Enterprise Capability-Based Data Comparison Framework v3.0",
+        prog="edcp",
+        description="DataComparePro (edcp) v3.0.0 — Enterprise Data Comparison Platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(

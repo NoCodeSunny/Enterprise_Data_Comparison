@@ -796,14 +796,16 @@ class TestAuditLoggerIntegration(unittest.TestCase):
         self.assertIn("test cancel", cancelled[0]["cancel_reason"])
 
     def test_audit_files_are_readonly(self):
-        """Audit files get chmod 444 after write."""
+        """Audit files become read-only (chmod 444) after batch finalize_batch() is called."""
         batch = self.mgr.create_batch(
             [{"prod_path": "/p.csv", "dev_path": "/d.csv", "keys": ["ID"]}], {}
         )
         logs = self._find_audit_logs(batch.batch_id)
-        self.assertTrue(len(logs) > 0)
+        self.assertTrue(len(logs) > 0, "Audit log file must be created")
+        # Explicitly finalize to trigger chmod 444
+        self.logger.finalize_batch(batch.batch_id)
         mode = oct(logs[0].stat().st_mode)
-        # file should not be world-writable (444 = 0o100444)
+        # file should be read-only after finalize (444 = 0o100444)
         self.assertIn("4", mode[-3:])
 
     def test_concurrent_writes_dont_corrupt(self):
@@ -897,7 +899,7 @@ class TestAPIHealthAndSchema(_APIBase):
         r = self._get("/api/v1/health")
         d = self._assert_ok(r, 200)
         self.assertEqual(d["data"]["platform"], "DataComparePro")
-        self.assertEqual(d["data"]["version"], "2.0.0")
+        self.assertEqual(d["data"]["version"], "3.0.0")
 
     def test_legacy_health_still_works(self):
         r = self._get("/api/health")
