@@ -1,0 +1,21 @@
+# DataComparePro v3.0 — Python runtime dependencies
+# Keep in sync with edcp/pyproject.toml [project.dependencies]
+pandas>=1.3.0
+numpy>=1.21.0
+openpyxl>=3.0.0
+PyYAML>=5.4
+flask>=3.0.0
+
+# Optional — for Parquet/Spark support
+# pyarrow>=12.0.0
+# pyspark>=3.4.0
+
+# Optional — for Windows Outlook email
+# pywin32>=300
+
+# Optional — used only in stability tests (test_extended_v3.py STAB-01/02/03)
+# psutil>=5.9.0
+
+# Dev / test
+# pytest>=7.0
+# pytest-cov

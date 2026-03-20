@@ -1,0 +1,12 @@
+# edcp v3.0 — core runtime dependencies
+pandas>=1.3.0
+numpy>=1.21.0
+openpyxl>=3.0.0
+PyYAML>=5.4
+flask>=3.0.0
+
+# Optional
+# pyarrow>=12.0.0
+# pyspark>=3.0.0
+# pywin32>=300
+# psutil>=5.9.0  (stability test monitoring only)
