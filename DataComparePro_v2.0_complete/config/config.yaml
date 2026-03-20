@@ -1,0 +1,77 @@
+# ============================================================
+# data_compare Framework  v3.1  –  Production Configuration
+# ============================================================
+
+# ── Core paths ───────────────────────────────────────────────
+input_sheet: "C:\\Users\\mtyagi\\Documents\\Compare\\InputSheet _Data_Comparison.xlsx"
+report_root: "C:\\Users\\mtyagi\\Documents\\Compare\\Reports\\DataCompare"
+
+# ── Email ────────────────────────────────────────────────────
+email_to:             "mtyagi@cppib.com"
+email_subject_prefix: "Data Comparison Results"
+smtp_host: "smtp.yourdomain.com"
+smtp_port: 587
+smtp_from: "noreply@yourdomain.com"
+smtp_user: ""
+smtp_pass: ""
+
+# ── Logging ──────────────────────────────────────────────────
+log_level: "INFO"
+# Logs written to: {report_root}/logs/data_compare.log
+#                  {report_root}/logs/data_compare.json.log
+
+# ── Parallelism ──────────────────────────────────────────────
+# max_workers=1  → sequential (safe default)
+# max_workers=4  → 4 batches run simultaneously (ThreadPoolExecutor)
+max_workers:    1
+
+# ── Retry config ─────────────────────────────────────────────
+max_retries:    0      # 0 = no retries; 2 = retry twice on failure
+retry_delay_s:  5.0    # seconds between retry attempts
+
+# ── Engine selection ─────────────────────────────────────────
+use_spark:              false    # true = force SparkEngine for all batches
+spark_threshold_bytes:  524288000  # 500 MB: auto-select Spark above this
+pandas_chunk_size:      200000     # rows per chunk for large-file reading
+
+# ── Capability on/off switches ───────────────────────────────
+capabilities:
+  comparison:   true
+  tolerance:    true
+  duplicate:    true
+  schema:       true
+  data_quality: true
+  audit:        true
+  alerts:       false
+  plugins:      false
+
+# ── Data quality check config ────────────────────────────────
+data_quality_checks:
+  null_rate:      true
+  distinct_count: true
+  type_inference: true
+  numeric_stats:  true
+
+# ── Alert rules ──────────────────────────────────────────────
+alert_rules: []
+# alert_rules:
+#   - metric: matched_failed
+#     operator: ">"
+#     threshold: 0
+#     level: WARNING
+#     message: "Validation failures detected"
+#   - metric: missing_dev_pct
+#     operator: ">"
+#     threshold: 5.0
+#     level: WARNING
+#     message: "More than 5% records missing in Dev"
+#   - metric: dup_count_prod
+#     operator: ">"
+#     threshold: 0
+#     level: INFO
+#     message: "Duplicate records found in PROD"
+
+# ── Plugin config ─────────────────────────────────────────────
+plugins:
+  enabled: false
+  modules: []

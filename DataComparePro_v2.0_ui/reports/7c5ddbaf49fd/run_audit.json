@@ -1,0 +1,35 @@
+{
+  "run_timestamp": "2026-03-19T16:34:54.229067",
+  "total_elapsed_s": 0.02,
+  "batch_count": 1,
+  "overall_pass": false,
+  "framework_version": "3.0.0",
+  "batches": [
+    {
+      "ResultName": "E2E_Test",
+      "ProdFile": "prod.csv",
+      "DevFile": "dev.csv",
+      "TotalProd": 3,
+      "TotalDev": 3,
+      "MatchedPassed": 2,
+      "MatchedFailed": 1,
+      "ExtraDev": 0,
+      "MissingDev": 0,
+      "DuplicateProd": 0,
+      "DuplicateDev": 0,
+      "UsedKeys": [
+        "ID"
+      ],
+      "MissingKeyColumns": [],
+      "IgnoredFields": [],
+      "ToleranceUsed": {},
+      "ReportPath": "/home/claude/edcp_ui/reports/7c5ddbaf49fd/E2E_Test_RecordComparison.xlsx",
+      "ElapsedSeconds": 0.02,
+      "AlertsTriggered": 0,
+      "SchemaExtraCount": 0,
+      "SchemaMissingCount": 0,
+      "JobID": "dc6069bbc723",
+      "Attempts": 1
+    }
+  ]
+}

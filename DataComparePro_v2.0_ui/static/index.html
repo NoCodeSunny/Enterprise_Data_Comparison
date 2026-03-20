@@ -1,0 +1,880 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DataComparePro — Enterprise Data Comparison Platform</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#1A237E;--blue:#283593;--mid:#3949AB;--light:#E8EAF6;--green:#2e7d32;--red:#c62828;--orange:#e65100;--amber:#f57f17;--grey:#607d8b;--dark:#263238;--bg:#f0f2f8;--white:#fff;--shadow:0 2px 12px rgba(0,0,0,.08)}
+body{font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--dark);font-size:13px}
+input,select,button,textarea{font-family:inherit;font-size:13px}
+.app{display:flex;min-height:100vh}
+.sb{width:220px;min-width:220px;background:var(--navy);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:.5px solid #e0e0e0;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.content{padding:20px 24px;flex:1}
+.brand{padding:16px;border-bottom:1px solid rgba(255,255,255,.12)}
+.brand-t{color:#fff;font-size:15px;font-weight:700}
+.brand-s{color:rgba(255,255,255,.5);font-size:10px;margin-top:2px}
+nav{padding:8px 0;flex:1}
+.ni{display:flex;align-items:center;gap:9px;padding:10px 16px;color:rgba(255,255,255,.72);cursor:pointer;border-left:3px solid transparent;font-size:12px;user-select:none;transition:.12s}
+.ni:hover{background:rgba(255,255,255,.07);color:#fff}
+.ni.active{background:rgba(255,255,255,.12);color:#fff;border-left-color:rgba(255,255,255,.8)}
+.sb-foot{padding:12px 16px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:#ef9a9a;flex-shrink:0;transition:.3s}
+.dot.ok{background:#a5d6a7}
+.card{background:#fff;border-radius:10px;border:.5px solid #e8eaf6;padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+.card-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:#fff;border-radius:8px;border:.5px solid #e8eaf6;padding:12px 14px;box-shadow:var(--shadow);text-align:center}
+.kpi-n{font-size:24px;font-weight:700;margin-bottom:2px}
+.kpi-l{font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:.04em}
+.g{color:var(--green)}.r{color:var(--red)}.b{color:var(--mid)}.o{color:var(--orange)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;border:none;cursor:pointer;font-weight:600;font-size:12px;transition:.12s;user-select:none;white-space:nowrap}
+.btn-primary{background:linear-gradient(135deg,var(--navy),var(--mid));color:#fff}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:#f0f2f8;color:var(--navy);border:.5px solid #dde}
+.btn-secondary:hover{background:#e8eaf6}
+.btn-danger{background:var(--red);color:#fff}
+.btn-success{background:var(--green);color:#fff}
+.btn-warn{background:var(--orange);color:#fff}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-group{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.t-ok{background:#e8f5e9;color:var(--green);border:1px solid #a5d6a7}
+.t-fail{background:#ffebee;color:var(--red);border:1px solid #ef9a9a}
+.t-run{background:#fff3e0;color:var(--orange);border:1px solid #ffcc02}
+.t-q{background:#e3f2fd;color:var(--mid);border:1px solid #90caf9}
+.t-can{background:#fce4ec;color:#880e4f;border:1px solid #f48fb1}
+.t-part{background:#fff8e1;color:var(--amber);border:1px solid #ffe082}
+.t-pause{background:#e8eaf6;color:var(--blue);border:1px solid #9fa8da}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+td{padding:7px 10px;border-bottom:.5px solid #f0f0f0;vertical-align:middle}
+tr:hover td{background:#fafbff}
+tr:last-child td{border-bottom:none}
+.tbl-wrap{overflow-x:auto;border-radius:8px;border:.5px solid #e8eaf6}
+.pbar-w{background:#e8eaf6;border-radius:6px;height:7px;overflow:hidden;margin:4px 0}
+.pbar{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--mid),#7986cb);transition:width .4s}
+.form-g{margin-bottom:12px}
+.form-g label{display:block;font-weight:600;font-size:12px;color:var(--dark);margin-bottom:4px}
+.hint{font-size:11px;color:var(--grey);margin-top:3px}
+input[type=text],input[type=number],select,textarea{width:100%;padding:7px 10px;border:1.5px solid #ddd;border-radius:7px;transition:.12s;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--mid)}
+.page{display:none}.page.active{display:block}
+/* Multi grid */
+.cgrid{border-collapse:collapse;width:100%;min-width:860px;font-size:11px}
+.cgrid th{background:var(--navy);color:#fff;padding:7px 8px;font-size:10px;text-transform:uppercase;white-space:nowrap}
+.cgrid td{padding:4px 5px;border-bottom:.5px solid #eee;vertical-align:top}
+.cgrid tr:hover td{background:#fafbff}
+.cgrid input,.cgrid select{font-size:11px;padding:4px 6px}
+/* Modals */
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:1000}
+.mbg.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:24px;max-width:540px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.modal-title{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.msect{border-left:3px solid var(--red);background:#fff8f8;padding:9px 12px;border-radius:0 7px 7px 0;margin:8px 0;font-size:12px}
+.msect.ok{border-color:var(--green);background:#f1f8e9}
+.mfooter{margin-top:18px;display:flex;gap:8px;justify-content:flex-end}
+.log-box{background:#1a2332;color:#a5d6a7;font-family:'Courier New',monospace;font-size:11px;padding:12px;border-radius:8px;height:320px;overflow-y:auto;line-height:1.65}
+.lI{color:#a5d6a7}.lE{color:#ef9a9a}.lW{color:#ffe082}.lD{color:#90a4ae}
+.lts{color:#546e7a;margin-right:5px}
+.tabs{display:flex;gap:3px;border-bottom:.5px solid #e8eaf6;margin-bottom:14px}
+.tab{padding:7px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:600;font-size:12px;color:var(--grey)}
+.tab.active{color:var(--navy);border-bottom-color:var(--navy)}
+.tp{display:none}.tp.active{display:block}
+.alert{padding:9px 13px;border-radius:7px;font-size:12px;margin-bottom:10px;border-left:3px solid}
+.ai{background:#e3f2fd;border-color:var(--mid);color:var(--blue)}
+.aw{background:#fff3e0;border-color:var(--orange);color:var(--orange)}
+.ae{background:#ffebee;border-color:var(--red);color:var(--red)}
+.aok{background:#e8f5e9;border-color:var(--green);color:var(--green)}
+.pager{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--grey);margin-top:10px;justify-content:flex-end}
+.empty{text-align:center;padding:40px;color:var(--grey)}
+code{font-family:'Courier New',monospace;font-size:11px;background:#f5f5f5;padding:1px 5px;border-radius:4px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:#bdbdbd;border-radius:3px}
+</style></head><body>
+<div class="app">
+
+<aside class="sb">
+  <div class="brand"><div class="brand-t">DataComparePro</div><div class="brand-s">Enterprise v2.0 — EDCP</div></div>
+  <nav>
+    <div class="ni active" data-p="dashboard" onclick="nav('dashboard')">⬛ Dashboard</div>
+    <div class="ni" data-p="multi" onclick="nav('multi')">⊞ Batch Compare</div>
+    <div class="ni" data-p="single" onclick="nav('single')">▷ Single Compare</div>
+    <div class="ni" data-p="progress" onclick="nav('progress')">◉ Progress</div>
+    <div class="ni" data-p="results" onclick="nav('results')">≡ Results</div>
+    <div class="ni" data-p="history" onclick="nav('history')">☰ History</div>
+  </nav>
+  <div class="sb-foot"><div id="DOT" class="dot"></div><span style="color:rgba(255,255,255,.5);font-size:10px" id="APIST">Connecting...</span></div>
+</aside>
+
+<div class="main">
+<header class="topbar">
+  <div>
+    <div style="font-size:16px;font-weight:700;color:var(--navy)" id="PGT">Dashboard</div>
+    <div style="font-size:11px;color:var(--grey)" id="PGS">Active batches and recent runs</div>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-secondary btn-sm" onclick="nav('multi')">⊞ New Batch</button>
+    <button class="btn btn-primary btn-sm" onclick="nav('single')">▷ Single Run</button>
+  </div>
+</header>
+<main class="content">
+
+<!-- DASHBOARD -->
+<div id="pg-dashboard" class="page active">
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-n b" id="KB">—</div><div class="kpi-l">Batches</div></div>
+    <div class="kpi"><div class="kpi-n g" id="KS">—</div><div class="kpi-l">Succeeded</div></div>
+    <div class="kpi"><div class="kpi-n r" id="KF">—</div><div class="kpi-l">Failed</div></div>
+    <div class="kpi"><div class="kpi-n o" id="KR">—</div><div class="kpi-l">Running</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">⚡ Active Batches
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <select id="df" onchange="loadDash()" style="font-size:11px;padding:3px 7px;width:120px">
+          <option value="">All Statuses</option><option>RUNNING</option><option>PENDING</option>
+          <option>SUCCESS</option><option>FAILED</option><option>CANCELLED</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="loadDash()">↻</button>
+      </div>
+    </div>
+    <div id="BCARDS"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 Recent Single Runs</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Name</th><th>PROD</th><th>DEV</th><th>Passed</th><th>Failed</th><th>Status</th><th>Date</th><th>Act</th></tr></thead>
+      <tbody id="DJOBS"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- BATCH MULTI -->
+<div id="pg-multi" class="page">
+  <div class="card">
+    <div class="card-title">⊞ Batch Configuration</div>
+    <div class="alert ai">📌 Submit 1–20 comparisons as a batch. Only file paths are stored — no data enters the UI.</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
+      <div class="form-g" style="margin:0;min-width:150px">
+        <label>Comparisons (1–20)</label>
+        <select id="BC" onchange="buildGrid();updateETA()">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option value="5" selected>5</option><option>6</option><option>7</option>
+          <option>8</option><option>10</option><option>12</option><option>15</option><option>20</option>
+        </select>
+      </div>
+      <div class="form-g" style="margin:0;min-width:140px">
+        <label>Execution Mode</label>
+        <select id="EM" onchange="toggleW();updateETA()">
+          <option value="sequential">Sequential</option>
+          <option value="parallel">Parallel</option>
+        </select>
+      </div>
+      <div class="form-g" style="margin:0;min-width:90px" id="WW">
+        <label>Workers</label>
+        <input type="number" id="MW" value="4" min="1" max="10">
+      </div>
+      <div class="form-g" style="margin:0;min-width:120px">
+        <label>Max Retries</label>
+        <select id="MR">
+          <option value="0">0 — no retry</option><option value="1">1</option>
+          <option value="3" selected>3 — recommended</option><option value="5">5</option>
+        </select>
+      </div>
+      <div class="btn-group" style="padding-top:14px;margin:0">
+        <button class="btn btn-secondary btn-sm" onclick="validateGrid()">✔ Validate</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearAllGrid()">✕ Clear</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadTpl()">📄 Template</button>
+      </div>
+    </div>
+    <div id="ETA" style="font-size:11px;color:var(--grey);margin-bottom:10px"></div>
+    <div style="overflow-x:auto;margin-bottom:12px">
+      <table class="cgrid"><thead><tr>
+        <th>#</th><th style="min-width:200px">PROD Path *</th><th style="min-width:200px">DEV Path *</th>
+        <th style="min-width:130px">Key Columns *</th><th style="min-width:110px">Ignore Fields</th>
+        <th style="min-width:110px">Tolerance (col:dp)</th><th>Act</th>
+      </tr></thead><tbody id="GB"></tbody></table>
+    </div>
+    <div id="VS"></div>
+    <div class="btn-group" style="margin-top:12px">
+      <button class="btn btn-primary" id="SUB" onclick="submitBatch()">▶ Submit Batch</button>
+      <button class="btn btn-secondary" onclick="nav('dashboard')">← Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- SINGLE -->
+<div id="pg-single" class="page">
+  <div class="card">
+    <div class="card-title">▷ Single Comparison</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="form-g">
+        <label>PROD File Path *</label>
+        <input type="text" id="SP" placeholder="C:\Data\prod.csv">
+        <div class="hint">Supports .csv .txt .xlsx .parquet</div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="sDetect('prod')">🔍 Detect Columns</button>
+        <div id="SPH" style="font-size:11px;color:var(--grey);margin-top:3px"></div>
+      </div>
+      <div class="form-g">
+        <label>DEV File Path *</label>
+        <input type="text" id="SD" placeholder="C:\Data\dev.csv">
+        <div class="hint">Cross-format supported</div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="sDetect('dev')">🔍 Detect Columns</button>
+        <div id="SDH" style="font-size:11px;color:var(--grey);margin-top:3px"></div>
+      </div>
+    </div>
+    <div class="form-g" style="max-width:320px"><label>Comparison Name</label><input type="text" id="SN" placeholder="Trade_Recon_Q1"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="form-g">
+        <label>Key Columns</label>
+        <div id="SKW" style="border:1.5px solid #ddd;border-radius:7px;padding:5px;min-height:34px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;cursor:text" onclick="document.getElementById('SKI').focus()">
+          <input id="SKI" style="border:none;outline:none;flex:1;min-width:60px;padding:2px 3px;font-size:11px;background:transparent" placeholder="Type column, Enter" onkeydown="addST('keys',event)">
+        </div>
+        <div id="SCOLS" style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px"></div>
+      </div>
+      <div class="form-g">
+        <label>Ignore Fields</label>
+        <div id="SIW" style="border:1.5px solid #ddd;border-radius:7px;padding:5px;min-height:34px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;cursor:text" onclick="document.getElementById('SII').focus()">
+          <input id="SII" style="border:none;outline:none;flex:1;min-width:60px;padding:2px 3px;font-size:11px;background:transparent" placeholder="Type field, Enter" onkeydown="addST('ignore',event)">
+        </div>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="SRB" onclick="submitSingle()">▷ Run</button>
+      <button class="btn btn-secondary" onclick="resetSingle()">↺ Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div id="pg-progress" class="page">
+  <div class="card">
+    <div class="card-title">◉ Batch Progress <span id="PBID" style="font-size:10px;color:var(--grey);font-weight:400;margin-left:8px"></span></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <div id="PTAG"></div><strong id="PNAME"></strong>
+      <div style="margin-left:auto;font-size:11px;color:var(--grey)" id="PETA"></div>
+    </div>
+    <div class="pbar-w"><div class="pbar" id="PB" style="width:0%"></div></div>
+    <div id="PCAP" style="font-size:11px;color:var(--grey);margin-top:3px"></div>
+    <div class="tbl-wrap" style="margin-top:14px"><table>
+      <thead><tr><th>Job</th><th>PROD File</th><th>Engine</th><th>Priority</th><th>Progress</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="PJOBS"></tbody>
+    </table></div>
+    <div class="btn-group" style="margin-top:12px">
+      <button class="btn btn-warn btn-sm" id="PBTN" onclick="pauseResume()">⏸ Pause</button>
+      <button class="btn btn-danger btn-sm" onclick="openCM()">✕ Cancel Batch</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadProg()">↻ Refresh</button>
+      <button class="btn btn-secondary btn-sm" onclick="nav('dashboard')">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="pg-results" class="page">
+  <div class="card" style="padding:10px 14px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-weight:700;color:var(--navy)">📥 Download</span>
+      <button class="btn btn-success btn-sm" onclick="dlR('excel')">📊 Excel</button>
+      <button class="btn btn-secondary btn-sm" onclick="dlR('html')">🌐 HTML</button>
+      <button class="btn btn-secondary btn-sm" onclick="dlR('json')">📄 JSON</button>
+      <div style="margin-left:auto">
+        <select id="RSEL" onchange="loadResults()" style="font-size:11px;padding:4px 8px;width:230px">
+          <option value="">— Select batch or job —</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="kpis" id="RKPIS"></div>
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" onclick="stab('rs')">Summary</div>
+      <div class="tab" onclick="stab('rd')">Differences</div>
+      <div class="tab" onclick="stab('rsch')">Schema</div>
+      <div class="tab" onclick="stab('ra')">Alerts</div>
+      <div class="tab" onclick="stab('rdbg')">Debugger</div>
+    </div>
+    <div id="tab-rs" class="tp active"><div id="RSB"></div></div>
+    <div id="tab-rd" class="tp"><div id="RDB"><div class="alert ai">Select a run to view differences. Full diff data is in the Excel report.</div></div></div>
+    <div id="tab-rsch" class="tp"><div id="RSCHB"></div></div>
+    <div id="tab-ra" class="tp"><div id="RAB"></div></div>
+    <div id="tab-rdbg" class="tp"><div id="RDBGB"></div></div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div id="pg-history" class="page">
+  <div class="card">
+    <div class="card-title">☰ All Runs
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <select id="HF" onchange="loadHist(0)" style="font-size:11px;padding:3px 7px;width:110px">
+          <option value="">All</option><option>SUCCESS</option><option>FAILED</option><option>CANCELLED</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="loadHist(0)">↻</button>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Name/ID</th><th>PROD</th><th>DEV</th><th>Passed</th><th>Failed</th><th>Status</th><th>Date</th><th>Act</th></tr></thead>
+      <tbody id="HR"></tbody>
+    </table></div>
+    <div class="pager" id="HP"></div>
+  </div>
+</div>
+
+</main></div></div>
+
+<!-- CANCEL MODAL -->
+<div class="mbg" id="CM">
+  <div class="modal">
+    <div class="modal-title"><span style="color:var(--orange);font-size:18px">⚠</span> Cancel Batch: <span id="CMBID" style="font-size:13px"></span>?</div>
+    <p style="font-size:12px;color:var(--grey);margin-bottom:10px">You are about to cancel this batch:</p>
+    <div class="msect" id="CMRUN">
+      <strong>Running jobs to stop:</strong>
+      <div id="CMRL" style="margin-top:5px;font-size:12px;line-height:1.7"></div>
+    </div>
+    <div class="msect" id="CMQW">
+      <strong>Queued jobs to remove: </strong><span id="CMQC" style="font-size:13px;font-weight:700"></span>
+    </div>
+    <div class="msect ok">
+      <strong>Completed jobs preserved:</strong>
+      <div id="CMDL" style="margin-top:5px;font-size:12px;line-height:1.7"></div>
+    </div>
+    <p style="font-size:12px;color:var(--red);font-weight:600;margin-top:10px">This action cannot be undone.</p>
+    <div class="mfooter">
+      <button class="btn btn-danger" onclick="confirmCancel()">✓ Yes, Cancel Batch</button>
+      <button class="btn btn-secondary" onclick="closeCM()">✕ No, Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG MODAL -->
+<div class="mbg" id="LM">
+  <div class="modal" style="max-width:780px;width:95%">
+    <div class="modal-title">📜 Logs: <span id="LMTIT"></span>
+      <div style="margin-left:auto;display:flex;gap:5px">
+        <select id="LLF" onchange="renderLogs()" style="font-size:11px;padding:3px 7px">
+          <option value="">All</option><option value="INFO">INFO</option>
+          <option value="ERROR">ERROR</option><option value="WARNING">WARNING</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" id="LARB" onclick="toggleLR()">⏸ Pause</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyLogs()">📋 Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="closeLM()">✕ Close</button>
+      </div>
+    </div>
+    <div class="log-box" id="LB"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+const A='';
+let curBID=null,curJID=null,pollT=null,logT=null;
+let logAR=true,logLines=[],histOff=0;
+let sTags={keys:[],ignore:[]},sCols={prod:[],dev:[]};
+let _cancelBID=null;
+
+const PM={
+  dashboard:['Dashboard','Active batches and recent runs'],
+  multi:['Batch Compare','Submit 1–20 comparisons as a single batch (F-BATCH-001)'],
+  single:['Single Compare','Run a single file-to-file comparison'],
+  progress:['Progress','Live batch execution (F-BATCH-005, F-CANCEL-001)'],
+  results:['Results','Comparison results and report downloads'],
+  history:['History','All past comparison runs'],
+};
+
+// ══════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════
+function nav(n){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(i=>i.classList.remove('active'));
+  document.getElementById('pg-'+n).classList.add('active');
+  document.querySelector(`[data-p="${n}"]`)?.classList.add('active');
+  const m=PM[n]||[n,''];
+  document.getElementById('PGT').textContent=m[0];
+  document.getElementById('PGS').textContent=m[1];
+  clearInterval(pollT); pollT=null;
+  if(n==='dashboard'){loadDash();pollT=setInterval(loadDash,8000);}
+  if(n==='history')  loadHist(0);
+  if(n==='multi')    {buildGrid();updateETA();toggleW();}
+  if(n==='progress') {loadProg();pollT=setInterval(loadProg,3000);}
+  if(n==='results')  loadResMenu();
+}
+
+// ══════════════════════════════════════════════════
+// HEALTH
+// ══════════════════════════════════════════════════
+async function chk(){
+  try{const r=await fetch(`${A}/api/health`,{signal:AbortSignal.timeout(3000)});
+    const ok=r.ok; document.getElementById('DOT').className='dot'+(ok?' ok':'');
+    document.getElementById('APIST').textContent=ok?'API Online':'API Error';
+  }catch{document.getElementById('DOT').className='dot';document.getElementById('APIST').textContent='Offline';}
+}
+
+// ══════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════
+async function loadDash(){
+  const st=document.getElementById('df').value;
+  try{
+    const d=await(await fetch(`${A}/api/v1/batch?limit=30${st?'&status='+st:''}`)).json();
+    const bs=d.data?.batches||[];
+    document.getElementById('KB').textContent=d.data?.total||bs.length;
+    document.getElementById('KS').textContent=bs.filter(b=>b.status==='SUCCESS').length;
+    document.getElementById('KF').textContent=bs.filter(b=>['FAILED','PARTIAL_SUCCESS'].includes(b.status)).length;
+    document.getElementById('KR').textContent=bs.filter(b=>['RUNNING','QUEUED','PENDING'].includes(b.status)).length;
+    renderBCards(bs);
+  }catch(e){document.getElementById('BCARDS').innerHTML=`<div class="alert ae">Could not load batches: ${e.message}</div>`;}
+  try{
+    const d=await(await fetch(`${A}/api/history?limit=8`)).json();
+    renderJRows('DJOBS',d.jobs||[],false);
+  }catch{}
+}
+
+function renderBCards(bs){
+  const el=document.getElementById('BCARDS');
+  if(!bs.length){el.innerHTML='<div class="empty">No batches yet. Click <strong>New Batch</strong> to start.</div>';return;}
+  el.innerHTML=bs.map(b=>{
+    const pct=Math.round(b.progress||0),j=b.jobs||{};
+    const dt=(b.created_at||'').substring(0,16).replace('T',' ');
+    const canC=['RUNNING','QUEUED','PENDING','PAUSED'].includes(b.status);
+    return `<div class="card" style="border-left:4px solid ${bColor(b.status)};margin-bottom:8px;cursor:pointer" onclick="openBatch('${b.batch_id}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <div><code style="font-size:11px">${b.batch_id}</code>
+          <div style="font-size:10px;color:var(--grey);margin-top:2px">${dt} · ${b.execution_mode||'sequential'}</div>
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+          ${btag(b.status)}
+          ${b.status==='RUNNING'?`<button class="btn btn-warn btn-sm" onclick="event.stopPropagation();pauseB('${b.batch_id}')">⏸</button>`:''}
+          ${b.status==='PAUSED'?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();resumeB('${b.batch_id}')">▷</button>`:''}
+          ${canC?`<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();openCM('${b.batch_id}')">✕</button>`:''}
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openBatch('${b.batch_id}')">→</button>
+        </div>
+      </div>
+      <div class="pbar-w" style="margin-top:8px"><div class="pbar" style="width:${pct}%"></div></div>
+      <div style="font-size:10px;color:var(--grey);margin-top:3px;display:flex;justify-content:space-between">
+        <span>${pct}% · ${j.completed||0}/${j.total||0} jobs</span><span>${b.estimated_remaining||''}</span>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
+        <span class="tag t-ok">✓ ${j.successful||0}</span>
+        ${(j.failed||0)?`<span class="tag t-fail">✗ ${j.failed}</span>`:''}
+        ${(j.running||0)?`<span class="tag t-run">⟳ ${j.running}</span>`:''}
+        ${(j.queued||0)?`<span class="tag t-q">◷ ${j.queued}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openBatch(bid){curBID=bid;nav('progress');}
+function bColor(s){return{RUNNING:'#e65100',SUCCESS:'#2e7d32',FAILED:'#c62828',CANCELLED:'#880e4f',PARTIAL_SUCCESS:'#f57f17',PAUSED:'#3949AB',PENDING:'#607d8b'}[s]||'#607d8b';}
+function btag(s){return{RUNNING:'<span class="tag t-run">⟳ Running</span>',SUCCESS:'<span class="tag t-ok">✓ Success</span>',FAILED:'<span class="tag t-fail">✗ Failed</span>',PARTIAL_SUCCESS:'<span class="tag t-part">⚡ Partial</span>',CANCELLED:'<span class="tag t-can">✕ Cancelled</span>',PAUSED:'<span class="tag t-pause">⏸ Paused</span>',PENDING:'<span class="tag t-q">◷ Pending</span>',QUEUED:'<span class="tag t-q">◷ Queued</span>',CANCELLING:'<span class="tag t-can">⟳ Cancelling</span>'}[s]||`<span class="tag">${s}</span>`;}
+function jtag(s){return{RUNNING:'<span class="tag t-run">⟳</span>',SUCCESS:'<span class="tag t-ok">✓</span>',FAILED:'<span class="tag t-fail">✗</span>',QUEUED:'<span class="tag t-q">◷</span>',PENDING:'<span class="tag t-q">◷</span>',CANCELLED:'<span class="tag t-can">✕</span>',RETRYING:'<span class="tag t-run">↻</span>',SKIPPED:'<span class="tag" style="background:#f5f5f5;color:var(--grey)">⊖</span>'}[s]||`<span class="tag">${s}</span>`;}
+
+// ══════════════════════════════════════════════════
+// MULTI-BATCH GRID
+// ══════════════════════════════════════════════════
+function buildGrid(){
+  const n=parseInt(document.getElementById('BC').value)||5;
+  const tb=document.getElementById('GB');
+  const cur=tb.querySelectorAll('tr').length;
+  if(n>cur){for(let i=cur;i<n;i++)tb.appendChild(mkRow(i));}
+  else if(n<cur){for(let i=cur-1;i>=n;i--)tb.children[i].remove();}
+}
+function mkRow(i){
+  const tr=document.createElement('tr'); tr.id=`R${i}`;
+  tr.innerHTML=`<td style="text-align:center;color:var(--grey);font-weight:600">${i+1}</td>
+    <td><input type="text" id="PR${i}" placeholder="/data/prod.csv"></td>
+    <td><input type="text" id="DV${i}" placeholder="/data/dev.csv"></td>
+    <td><input type="text" id="KY${i}" placeholder="TradeID,Port"></td>
+    <td><input type="text" id="IG${i}" placeholder="LoadTime"></td>
+    <td><input type="text" id="TL${i}" placeholder="Price:2"></td>
+    <td><button class="btn btn-secondary btn-sm" onclick="cpRow(${i})" title="Copy row above">↙</button>
+        <button class="btn btn-secondary btn-sm" onclick="clRow(${i})" title="Clear row">✕</button></td>`;
+  return tr;
+}
+function toggleW(){const par=document.getElementById('EM').value==='parallel';document.getElementById('WW').style.opacity=par?'1':'0.3';document.getElementById('MW').disabled=!par;}
+function updateETA(){
+  const n=parseInt(document.getElementById('BC').value)||1,m=document.getElementById('EM').value;
+  const w=parseInt(document.getElementById('MW').value)||4,avg=45;
+  const tot=m==='parallel'?Math.ceil(n/w)*avg:n*avg;
+  const mi=Math.floor(tot/60),s=tot%60;
+  document.getElementById('ETA').textContent=`⏱ Est. ~${mi>0?mi+'m ':''}${s}s for ${n} job(s) in ${m} mode`;
+}
+function cpRow(i){if(i===0)return;['PR','DV','KY','IG','TL'].forEach(f=>{const s=document.getElementById(`${f}${i-1}`),d=document.getElementById(`${f}${i}`);if(s&&d)d.value=s.value;});}
+function clRow(i){['PR','DV','KY','IG','TL'].forEach(f=>{const e=document.getElementById(`${f}${i}`);if(e)e.value='';});}
+function clearAllGrid(){if(!confirm('Clear all rows?'))return;const n=parseInt(document.getElementById('BC').value)||5;for(let i=0;i<n;i++)clRow(i);document.getElementById('VS').innerHTML='';}
+function loadTpl(){const n=parseInt(document.getElementById('BC').value);for(let i=0;i<Math.min(n,3);i++){document.getElementById(`PR${i}`).value=`/data/prod/file_${i+1}.csv`;document.getElementById(`DV${i}`).value=`/data/dev/file_${i+1}.csv`;document.getElementById(`KY${i}`).value='TradeID';document.getElementById(`IG${i}`).value='LoadTimestamp';document.getElementById(`TL${i}`).value='Price:2';}}
+
+function getGrid(){
+  const n=parseInt(document.getElementById('BC').value)||5,rows=[];
+  for(let i=0;i<n;i++){
+    const pr=(document.getElementById(`PR${i}`)?.value||'').trim();
+    const dv=(document.getElementById(`DV${i}`)?.value||'').trim();
+    if(!pr&&!dv)continue;
+    const ky=(document.getElementById(`KY${i}`)?.value||'').trim();
+    const ig=(document.getElementById(`IG${i}`)?.value||'').trim();
+    const tl=(document.getElementById(`TL${i}`)?.value||'').trim();
+    const tol={};
+    if(tl)tl.split(',').forEach(p=>{const[f,d]=(p+':').split(':');if(f.trim()&&d)tol[f.trim()]=parseFloat(d)||0;});
+    rows.push({prod_path:pr,dev_path:dv,keys:ky?ky.split(',').map(k=>k.trim()).filter(Boolean):[],ignore_columns:ig?ig.split(',').map(k=>k.trim()).filter(Boolean):[],tolerance:tol});
+  }
+  return rows;
+}
+
+async function validateGrid(){
+  const rows=getGrid();
+  if(!rows.length){document.getElementById('VS').innerHTML='<div class="alert aw">No rows. Fill at least one comparison.</div>';return;}
+  try{
+    const r=await fetch(`${A}/api/v1/batch`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({comparisons:rows,config:{execution_mode:'sequential'}})});
+    const d=await r.json();
+    if(d.success){
+      if(d.data?.batch_id)await fetch(`${A}/api/v1/batch/${d.data.batch_id}/cancel`,{method:'POST'});
+      document.getElementById('VS').innerHTML='<div class="alert aok">✅ All rows valid — ready to submit!</div>';
+    }else{
+      const errs=d.error?.details||[];
+      document.getElementById('VS').innerHTML=`<div class="alert ae">❌ ${errs.length} error(s):<ul style="margin:5px 0 0 16px">`
+        +errs.map(e=>`<li>Row ${e.job||'?'} [${e.field}]: ${e.message}</li>`).join('')+'</ul></div>';
+    }
+  }catch(e){document.getElementById('VS').innerHTML=`<div class="alert ae">Validation error: ${e.message}</div>`;}
+}
+
+async function submitBatch(){
+  const rows=getGrid();
+  if(!rows.length){alert('Add at least one row');return;}
+  const mode=document.getElementById('EM').value,w=parseInt(document.getElementById('MW').value)||4;
+  const ret=parseInt(document.getElementById('MR').value)||3;
+  const btn=document.getElementById('SUB');btn.disabled=true;btn.textContent='⏳ Submitting...';
+  try{
+    const r=await fetch(`${A}/api/v1/batch`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({comparisons:rows,config:{execution_mode:mode,max_workers:w,retry:{max_attempts:ret}}})});
+    const d=await r.json();
+    if(d.success){curBID=d.data.batch_id;nav('progress');}
+    else{
+      const errs=d.error?.details||[];
+      const msg=errs.length?errs.map(e=>`Row ${e.job}: [${e.field}] ${e.message}`).join('\n'):d.error?.message||'Unknown';
+      document.getElementById('VS').innerHTML=`<div class="alert ae">❌ ${e(msg.replace(/\n/g,'<br>'))}</div>`;
+    }
+  }catch(err){alert('Submit failed: '+err.message);}
+  finally{btn.disabled=false;btn.textContent='▶ Submit Batch';}
+}
+
+// ══════════════════════════════════════════════════
+// PROGRESS
+// ══════════════════════════════════════════════════
+async function loadProg(){
+  if(!curBID)return;
+  try{
+    const d=await(await fetch(`${A}/api/v1/batch/${curBID}`)).json();
+    if(!d.success)return;const b=d.data;
+    document.getElementById('PBID').textContent=b.batch_id;
+    document.getElementById('PNAME').textContent=b.execution_mode+' mode';
+    document.getElementById('PTAG').innerHTML=btag(b.status);
+    const pct=Math.round(b.progress||0);
+    document.getElementById('PB').style.width=pct+'%';
+    document.getElementById('PCAP').textContent=`${pct}% · ${b.jobs.completed}/${b.jobs.total} jobs · ✓${b.jobs.successful} ✗${b.jobs.failed}`;
+    document.getElementById('PETA').textContent=b.estimated_remaining||'';
+    const pb=document.getElementById('PBTN');
+    if(b.status==='PAUSED'){pb.textContent='▷ Resume';pb.onclick=()=>resumeB(curBID);}
+    else{pb.textContent='⏸ Pause';pb.onclick=()=>pauseB(curBID);}
+    document.getElementById('PJOBS').innerHTML=(b.jobs_detail||[]).map(j=>{
+      const fn=sp(j.files?.prod||'—'),pct=Math.round(j.progress||0);
+      return`<tr>
+        <td><code style="font-size:10px">${j.job_id}</code></td>
+        <td title="${e(j.files?.prod||'')}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${e(fn)}</td>
+        <td><code style="font-size:10px">${j.engine_used||'—'}</code></td>
+        <td><span class="tag ${j.priority==='HIGH'?'t-ok':j.priority==='MEDIUM'?'t-run':'t-fail'}" style="font-size:10px">${j.priority||'—'}</span></td>
+        <td style="min-width:70px">${j.status==='RUNNING'?`<div class="pbar-w" style="height:5px"><div class="pbar" style="width:${pct}%"></div></div><div style="font-size:10px;color:var(--grey)">${pct}%</div>`:`<span style="font-size:10px;color:var(--grey)">${pct}%</span>`}</td>
+        <td>${jtag(j.status)} <span style="font-size:10px;color:var(--grey)">${j.status}</span></td>
+        <td><div style="display:flex;gap:3px">
+          <button class="btn btn-secondary btn-sm" onclick="openLM('${j.job_id}','${j.job_id}')">Logs</button>
+          ${j.status==='FAILED'?`<button class="btn btn-warn btn-sm" onclick="retryJ('${j.job_id}')">Retry</button>`:''}
+          ${j.status==='FAILED'?`<button class="btn btn-secondary btn-sm" onclick="skipJ('${j.job_id}')">Skip</button>`:''}
+        </div></td>
+      </tr>`;
+    }).join('');
+    if(['SUCCESS','FAILED','PARTIAL_SUCCESS','CANCELLED'].includes(b.status)){clearInterval(pollT);pollT=null;}
+  }catch{}
+}
+
+async function pauseB(bid){
+  const r=await fetch(`${A}/api/v1/batch/${bid||curBID}/pause`,{method:'POST'});
+  const d=await r.json();if(!d.success)alert(d.error?.message||'Pause failed');else loadProg();
+}
+async function resumeB(bid){
+  const r=await fetch(`${A}/api/v1/batch/${bid||curBID}/resume`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retry_failed:false})});
+  const d=await r.json();if(!d.success)alert(d.error?.message||'Resume failed');else loadProg();
+}
+function pauseResume(){if(document.getElementById('PBTN').textContent.includes('Pause'))pauseB();else resumeB();}
+async function retryJ(jid){
+  if(!curBID)return;
+  const r=await fetch(`${A}/api/v1/batch/${curBID}/retry`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_ids:[jid],max_attempts:3})});
+  const d=await r.json();if(!d.success)alert(d.error?.message||'Retry failed');else loadProg();
+}
+async function skipJ(jid){
+  const r=await fetch(`${A}/api/v1/job/${jid}/skip`,{method:'POST'});
+  const d=await r.json();if(!d.success)alert(d.error?.message||'Skip failed');else loadProg();
+}
+
+// ══════════════════════════════════════════════════
+// CANCEL MODAL (F-CANCEL-001 to F-CANCEL-010)
+// ══════════════════════════════════════════════════
+async function openCM(bid){
+  _cancelBID=bid||curBID;if(!_cancelBID)return;
+  try{
+    const d=await(await fetch(`${A}/api/v1/batch/${_cancelBID}/cancel-preview`)).json();
+    if(!d.success){alert('Could not load preview');return;}
+    const p=d.data;
+    document.getElementById('CMBID').textContent=_cancelBID;
+    const rl=p.running_jobs||[];
+    document.getElementById('CMRL').innerHTML=rl.length?rl.map(j=>`• ${j.job_id}: ${e(j.file)} (${j.progress}% complete)`).join('<br>'):'<em>None</em>';
+    document.getElementById('CMRUN').style.display=rl.length?'':'none';
+    document.getElementById('CMQC').textContent=p.queued_count||0;
+    document.getElementById('CMQW').style.display=(p.queued_count>0)?'':'none';
+    const dl=p.completed_jobs||[];
+    document.getElementById('CMDL').innerHTML=dl.length?dl.map(j=>`✓ ${j.job_id}: ${e(j.file)}`).join('<br>'):'<em>None yet</em>';
+  }catch{}
+  document.getElementById('CM').classList.add('open');
+}
+function closeCM(){document.getElementById('CM').classList.remove('open');_cancelBID=null;}
+async function confirmCancel(){
+  if(!_cancelBID)return;
+  const r=await fetch(`${A}/api/v1/batch/${_cancelBID}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:'User requested cancellation via UI'})});
+  const d=await r.json();
+  if(!d.success){alert(d.error?.message||'Cancel failed');return;}
+  closeCM();loadProg();
+}
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'){closeCM();closeLM();}});
+
+// ══════════════════════════════════════════════════
+// LOG MODAL
+// ══════════════════════════════════════════════════
+let _logJID=null;
+async function openLM(jid,title){
+  _logJID=jid;logLines=[];
+  document.getElementById('LMTIT').textContent=title||jid;
+  document.getElementById('LM').classList.add('open');
+  logAR=true;document.getElementById('LARB').textContent='⏸ Pause';
+  await refreshLogs();
+  if(logAR)logT=setInterval(refreshLogs,2500);
+}
+function closeLM(){clearInterval(logT);logT=null;document.getElementById('LM').classList.remove('open');_logJID=null;}
+async function refreshLogs(){
+  if(!_logJID)return;
+  try{
+    let logs=[];
+    const r1=await fetch(`${A}/api/v1/job/${_logJID}/logs?limit=200`);const d1=await r1.json();
+    if(d1.success)logs=d1.data?.logs||[];
+    else{const r2=await fetch(`${A}/api/job/${_logJID}/logs`);logs=await r2.json();}
+    logLines=logs;renderLogs();
+  }catch{}
+}
+function renderLogs(){
+  const lvl=document.getElementById('LLF').value,lb=document.getElementById('LB');
+  const fl=lvl?logLines.filter(l=>(l.level||'').toUpperCase()===lvl):logLines;
+  lb.innerHTML=fl.map(l=>{const ts=(l.ts||'').substring(11,19),lv=(l.level||'INFO').toUpperCase();
+    return`<div><span class="lts">${ts}</span><span class="l${lv[0]}">[${lv}]</span> ${e(l.message||'')}</div>`;}).join('');
+  if(logAR)lb.scrollTop=lb.scrollHeight;
+}
+function toggleLR(){logAR=!logAR;document.getElementById('LARB').textContent=logAR?'⏸ Pause':'▷ Resume';
+  if(logAR){refreshLogs();logT=setInterval(refreshLogs,2500);}else clearInterval(logT);}
+function copyLogs(){navigator.clipboard?.writeText(logLines.map(l=>`[${l.ts}][${l.level}] ${l.message}`).join('\n')).catch(()=>{});}
+
+// ══════════════════════════════════════════════════
+// RESULTS
+// ══════════════════════════════════════════════════
+async function loadResMenu(){
+  const sel=document.getElementById('RSEL');
+  try{
+    let opts='<option value="">— Select batch or job —</option>';
+    const bd=await(await fetch(`${A}/api/v1/batch?limit=20`)).json();
+    (bd.data?.batches||[]).forEach(b=>{opts+=`<option value="batch:${b.batch_id}">[BATCH] ${b.batch_id} (${b.status})</option>`;});
+    const jd=await(await fetch(`${A}/api/history?limit=10`)).json();
+    (jd.jobs||[]).forEach(j=>{opts+=`<option value="job:${j.job_id}">[JOB] ${j.result_name||j.job_id} (${j.status})</option>`;});
+    sel.innerHTML=opts;
+    if(curBID){const op=sel.querySelector(`[value="batch:${curBID}"]`);if(op){op.selected=true;loadResults();}}
+    else if(curJID){const op=sel.querySelector(`[value="job:${curJID}"]`);if(op){op.selected=true;loadResults();}}
+  }catch{}
+}
+async function loadResults(){
+  const val=document.getElementById('RSEL').value;if(!val)return;
+  const[type,id]=val.split(':');
+  if(type==='batch')await loadBRes(id);else await loadJRes(id);
+}
+async function loadJRes(jid){
+  curJID=jid;
+  try{
+    const r=await fetch(`${A}/api/job/${jid}`);const j=await r.json();const s=j.summary||{};
+    renderRKPIs({prod:s.TotalProd||0,dev:s.TotalDev||0,passed:s.MatchedPassed||0,failed:s.MatchedFailed||0,missing:s.MissingDev||0,extra:s.ExtraDev||0});
+    document.getElementById('RSB').innerHTML=buildSumHTML(s,j);
+    rSch(s);rAlr(s);rDbg(j);
+  }catch(ex){document.getElementById('RSB').innerHTML=`<div class="alert ae">Error: ${e(ex.message)}</div>`;}
+}
+async function loadBRes(bid){
+  try{
+    const d=await(await fetch(`${A}/api/v1/batch/${bid}`)).json();if(!d.success)return;
+    const b=d.data,js=b.jobs_detail||[];
+    renderRKPIs({prod:b.jobs.total,dev:b.jobs.total,passed:b.jobs.successful,failed:b.jobs.failed,missing:0,extra:0});
+    document.getElementById('RSB').innerHTML=`
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">Batch: <code>${bid}</code></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Job</th><th>PROD</th><th>Engine</th><th>Records</th><th>Diffs</th><th>Duration</th><th>Status</th></tr></thead>
+      <tbody>${js.map(j=>`<tr>
+        <td><code style="font-size:10px">${j.job_id}</code></td>
+        <td title="${e(j.files?.prod||'')}" style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e(sp(j.files?.prod||'—'))}</td>
+        <td><code style="font-size:10px">${j.engine_used||'—'}</code></td>
+        <td>${fmtN(j.records_compared||0)}</td>
+        <td style="color:${(j.differences_found||0)>0?'var(--red)':'var(--green)'};font-weight:600">${fmtN(j.differences_found||0)}</td>
+        <td style="color:var(--grey)">${(j.duration_sec||0).toFixed(1)}s</td>
+        <td>${jtag(j.status)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+    rSch({});rAlr({AlertsTriggered:0});document.getElementById('RDBGB').innerHTML='<div class="alert aok">No debugger output — select a specific job from the Results dropdown for failure details.</div>';
+  }catch{}
+}
+function renderRKPIs(d){
+  document.getElementById('RKPIS').innerHTML=`
+    <div class="kpi"><div class="kpi-n b">${fmtN(d.prod)}</div><div class="kpi-l">PROD / Batches</div></div>
+    <div class="kpi"><div class="kpi-n g">${fmtN(d.passed)}</div><div class="kpi-l">✓ Passed</div></div>
+    <div class="kpi"><div class="kpi-n r">${fmtN(d.failed)}</div><div class="kpi-l">✗ Failed</div></div>
+    <div class="kpi"><div class="kpi-n o">${fmtN(d.missing)}</div><div class="kpi-l">Missing DEV</div></div>
+    <div class="kpi"><div class="kpi-n o">${fmtN(d.extra)}</div><div class="kpi-l">Extra DEV</div></div>
+    <div class="kpi"><div class="kpi-n ${d.failed>0?'r':'g'}">${d.failed>0?'FAIL':'PASS'}</div><div class="kpi-l">Overall</div></div>`;
+}
+function buildSumHTML(s,j){
+  const R=(l,v)=>`<tr><td style="color:var(--grey);width:110px;padding:5px 0;font-size:12px">${l}</td><td style="font-size:12px">${v}</td></tr>`;
+  return`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><table><tbody>
+    ${R('Name',e(s.ResultName||j.result_name||j.job_id||'—'))}
+    ${R('PROD',`<code style="font-size:10px">${e(s.ProdFile||j.prod_path||'—')}</code>`)}
+    ${R('DEV',`<code style="font-size:10px">${e(s.DevFile||j.dev_path||'—')}</code>`)}
+    ${R('Keys',e((s.UsedKeys||[]).join(', ')||'(none)'))}
+    ${R('Elapsed',`${(s.ElapsedSeconds||0).toFixed(1)}s`)}
+    ${R('Engine',`<code style="font-size:10px">${e(s.engine||'—')}</code>`)}
+  </tbody></table><table><tbody>
+    ${R('Passed',`<strong class="g">${fmtN(s.MatchedPassed||0)}</strong>`)}
+    ${R('Failed',`<strong class="${(s.MatchedFailed||0)>0?'r':'g'}">${fmtN(s.MatchedFailed||0)}</strong>`)}
+    ${R('Missing DEV',fmtN(s.MissingDev||0))}
+    ${R('Extra DEV',fmtN(s.ExtraDev||0))}
+    ${R('Dups P/D',`${fmtN(s.DuplicateProd||0)} / ${fmtN(s.DuplicateDev||0)}`)}
+    ${R('Pass Rate',s.TotalProd>0?((s.MatchedPassed/Math.max(1,s.MatchedPassed+s.MatchedFailed))*100).toFixed(1)+'%':'—')}
+  </tbody></table></div>`;
+}
+function rSch(s){const m=s.SchemaMissingCount||0,ex=s.SchemaExtraCount||0;document.getElementById('RSCHB').innerHTML=m+ex===0?'<div class="alert aok">✅ No schema differences.</div>':`<div class="alert aw">⚠️ ${m} missing in DEV, ${ex} extra in DEV. See Schema Differences sheet in Excel report.</div>`;}
+function rAlr(s){const n=s.AlertsTriggered||0;document.getElementById('RAB').innerHTML=n>0?`<div class="alert aw">🚨 ${n} alert(s) triggered. See Alerts sheet in Excel report.</div>`:'<div class="alert aok">✅ No alerts triggered.</div>';}
+function rDbg(j){
+  const ds=j.debug_summary||{};
+  if(ds.error_code){document.getElementById('RDBGB').innerHTML=`<div class="alert ae"><div style="font-weight:700;margin-bottom:5px">❌ ${e(ds.error_code)} — ${e(ds.category||'')}</div><div style="margin-bottom:5px">${e(ds.human_message||j.error_msg||'')}</div><strong>Recommended Fix:</strong><pre style="font-size:11px;margin-top:3px;white-space:pre-wrap">${e(ds.recommended_fix||'')}</pre></div>`;}
+  else if(j.status==='FAILED'&&j.error_msg){document.getElementById('RDBGB').innerHTML=`<div class="alert ae">❌ ${e(j.error_msg)}</div>`;}
+  else{document.getElementById('RDBGB').innerHTML='<div class="alert aok">✅ No errors.</div>';}
+}
+function dlR(type){const val=document.getElementById('RSEL').value;if(!val||!val.includes(':'))return;const[_,id]=val.split(':');window.open(`${A}/api/download/${id}/${type}`,'_blank');}
+function stab(n){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tp').forEach(t=>t.classList.remove('active'));document.querySelector(`.tab[onclick="stab('${n}')"]`).classList.add('active');document.getElementById('tab-'+n).classList.add('active');}
+
+// ══════════════════════════════════════════════════
+// SINGLE RUN
+// ══════════════════════════════════════════════════
+async function sDetect(side){
+  const path=document.getElementById(side==='prod'?'SP':'SD').value.trim();
+  if(!path){alert('Enter a file path first');return;}
+  const h=document.getElementById(side==='prod'?'SPH':'SDH');h.textContent='🔍 Detecting...';
+  try{
+    const d=await(await fetch(`${A}/api/detect-columns`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})})).json();
+    if(d.error){h.innerHTML=`<span style="color:var(--red)">❌ ${e(d.error)}</span>`;return;}
+    sCols[side]=d.columns||[];
+    h.innerHTML=`<span style="color:var(--green)">✅ ${sCols[side].length} columns (${fmtSz(d.file_size||0)})</span>`;
+    renderSCols();
+  }catch(ex){h.innerHTML=`<span style="color:var(--red)">❌ ${ex.message}</span>`;}
+}
+function renderSCols(){
+  const all=[...new Set([...sCols.prod,...sCols.dev])];
+  document.getElementById('SCOLS').innerHTML=all.length?all.map(c=>`<span style="background:#e8eaf6;color:var(--navy);padding:1px 6px;border-radius:4px;font-size:10px;cursor:pointer;margin:1px;display:inline-block" onclick="qAddS('${e(c)}')">${e(c)}</span>`).join(''):'';
+}
+function addST(type,ev){
+  if(ev.key!=='Enter'&&ev.key!==',')return;ev.preventDefault();
+  const inp=document.getElementById(type==='keys'?'SKI':'SII');
+  const v=inp.value.trim().replace(/,$/,'');
+  if(v&&!sTags[type].includes(v)){sTags[type].push(v);renderST(type);}
+  inp.value='';
+}
+function renderST(type){
+  const wrap=document.getElementById(type==='keys'?'SKW':'SIW');
+  const inp=document.getElementById(type==='keys'?'SKI':'SII');
+  wrap.querySelectorAll('.stg').forEach(t=>t.remove());
+  sTags[type].forEach(v=>{const s=document.createElement('span');s.className='stg';
+    s.style.cssText='background:#e8eaf6;color:var(--navy);border-radius:5px;padding:2px 7px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:3px';
+    s.innerHTML=`${e(v)}<span style="cursor:pointer;color:var(--grey)" onclick="remST('${type}','${e(v)}')">×</span>`;
+    wrap.insertBefore(s,inp);});
+}
+function remST(type,val){sTags[type]=sTags[type].filter(t=>t!==val);renderST(type);}
+function qAddS(c){if(!sTags.keys.includes(c)){sTags.keys.push(c);renderST('keys');}}
+async function submitSingle(){
+  const pr=document.getElementById('SP').value.trim(),dv=document.getElementById('SD').value.trim();
+  if(!pr||!dv){alert('PROD and DEV paths required');return;}
+  const btn=document.getElementById('SRB');btn.disabled=true;btn.textContent='⏳...';
+  try{
+    const r=await fetch(`${A}/api/run`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prod_path:pr,dev_path:dv,result_name:document.getElementById('SN').value.trim()||undefined,
+        keys:sTags.keys,ignore_fields:sTags.ignore})});
+    const d=await r.json();
+    if(d.error){alert(d.error);return;}
+    curJID=d.job_id;curBID=null;nav('results');
+    setTimeout(loadResMenu,500);
+  }catch(ex){alert('Submit failed: '+ex.message);}
+  finally{btn.disabled=false;btn.textContent='▷ Run';}
+}
+function resetSingle(){document.getElementById('SP').value='';document.getElementById('SD').value='';document.getElementById('SN').value='';sTags={keys:[],ignore:[]};sCols={prod:[],dev:[]};renderST('keys');renderST('ignore');document.getElementById('SCOLS').innerHTML='';document.getElementById('SPH').textContent='';document.getElementById('SDH').textContent='';}
+
+// ══════════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════════
+async function loadHist(off){
+  histOff=off||0;const st=document.getElementById('HF').value;const lim=30;
+  try{
+    const d=await(await fetch(`${A}/api/history?limit=${lim}&offset=${histOff}${st?'&status='+st:''}`)).json();
+    renderJRows('HR',d.jobs||[],true);
+    const pages=Math.ceil((d.total||0)/lim),cur=Math.floor(histOff/lim);
+    let pag=`<span>Page ${cur+1}/${pages||1} (${d.total||0} total)</span>`;
+    if(cur>0)pag+=`<button class="btn btn-secondary btn-sm" onclick="loadHist(${(cur-1)*lim})">← Prev</button>`;
+    if(cur+1<pages)pag+=`<button class="btn btn-secondary btn-sm" onclick="loadHist(${(cur+1)*lim})">Next →</button>`;
+    document.getElementById('HP').innerHTML=pag;
+  }catch(ex){document.getElementById('HR').innerHTML=`<tr><td colspan="8" style="color:var(--red)">Error: ${e(ex.message)}</td></tr>`;}
+}
+function renderJRows(tbid,jobs,showDel){
+  const tb=document.getElementById(tbid);
+  if(!jobs.length){tb.innerHTML=`<tr><td colspan="8"><div class="empty">No runs yet</div></td></tr>`;return;}
+  tb.innerHTML=jobs.map(j=>{
+    const dt=(j.created_at||'').substring(0,16).replace('T',' ');
+    const pr=sp(j.prod_path||'—'),dv=sp(j.dev_path||'—');
+    const pas=j.matched_passed!==undefined?fmtN(j.matched_passed):'—';
+    const fai=j.matched_failed!==undefined?fmtN(j.matched_failed):'—';
+    return`<tr>
+      <td><strong style="font-size:12px">${e(j.result_name||j.job_id)}</strong></td>
+      <td title="${e(j.prod_path||'')}"><code style="font-size:10px">${e(pr)}</code></td>
+      <td title="${e(j.dev_path||'')}"><code style="font-size:10px">${e(dv)}</code></td>
+      <td style="color:var(--green);font-weight:600">${pas}</td>
+      <td style="color:${j.matched_failed>0?'var(--red)':'var(--grey)'};font-weight:600">${fai}</td>
+      <td>${stag(j.status)}</td>
+      <td style="font-size:10px;color:var(--grey)">${dt}</td>
+      <td><div style="display:flex;gap:3px">
+        ${j.status==='SUCCESS'?`<button class="btn btn-secondary btn-sm" onclick="openJR('${j.job_id}')">View</button>`:''}
+        ${j.status==='FAILED'?`<button class="btn btn-secondary btn-sm" onclick="openJR('${j.job_id}')">Debug</button>`:''}
+        ${showDel?`<button class="btn btn-danger btn-sm" onclick="delJ('${j.job_id}')">✕</button>`:''}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function openJR(jid){curJID=jid;curBID=null;nav('results');}
+async function delJ(jid){if(!confirm('Remove this run?'))return;await fetch(`${A}/api/job/${jid}`,{method:'DELETE'});loadHist(histOff);loadDash();}
+function stag(s){return{SUCCESS:'<span class="tag t-ok">✓ Success</span>',FAILED:'<span class="tag t-fail">✗ Failed</span>',RUNNING:'<span class="tag t-run">⟳ Running</span>',QUEUED:'<span class="tag t-q">◷ Queued</span>'}[s]||`<span class="tag">${s}</span>`;}
+
+// ══════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════
+function e(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtN(n){return Number(n).toLocaleString();}
+function fmtSz(b){if(b>1073741824)return(b/1073741824).toFixed(1)+' GB';if(b>1048576)return(b/1048576).toFixed(1)+' MB';if(b>1024)return(b/1024).toFixed(1)+' KB';return b+' B';}
+function sp(p){if(!p||p==='—')return p;const pts=p.replace(/\\/g,'/').split('/');return pts.length>2?'…/'+pts.slice(-2).join('/'):p;}
+
+// INIT
+chk();setInterval(chk,30000);buildGrid();toggleW();updateETA();loadDash();
+</script></body></html>

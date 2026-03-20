@@ -1,0 +1,507 @@
+# -*- coding: utf-8 -*-
+"""
+tests/test_tolerance.py
+────────────────────────
+Tests for tolerance, config validation, job layer, and logger:
+
+TT-01  normalize_numeric_with_tolerance rounds correctly (ROUND_HALF_UP)
+TT-02  Non-numeric values returned unchanged
+TT-03  Empty string returned as-is
+TT-04  build_tolerance_map parses sheet correctly
+TT-05  build_tolerance_map skips blank/invalid rows
+TT-06  resolve_pair_tolerance filters to correct pair
+TT-07  Tolerance applied: 100.001 vs 100.003 at 2dp → PASS
+TT-08  Tolerance not applied when disabled: same values → FAIL
+TT-09  validate_config passes valid config
+TT-10  validate_config raises ConfigError on invalid log_level
+TT-11  validate_config raises ConfigError on missing required keys
+TT-12  validate_batch_row raises on missing prod file
+TT-13  ConfigError message lists all errors at once
+TT-14  ComparisonJob returns SUCCESS result
+TT-15  ComparisonJob retries on failure then succeeds
+TT-16  ComparisonJob returns FAILED after max retries exhausted
+TT-17  JSON logger produces parseable JSON lines
+TT-18  set_run_id / set_job_name injected into JSON records
+TT-19  configure_logging writes file log when log_dir given
+TT-20  Registry: custom capability appended after built-ins
+
+Run with:
+    python -m unittest tests/test_tolerance.py -v
+    python -m pytest   tests/test_tolerance.py -v
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+import os
+import tempfile
+import time
+import unittest
+from pathlib import Path
+
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+class TestNormalizeNumericWithTolerance(unittest.TestCase):
+    """TT-01 to TT-03."""
+
+    def _round(self, val, dec):
+        from data_compare.comparator.tolerance import normalize_numeric_with_tolerance
+        return normalize_numeric_with_tolerance(val, dec)
+
+    def test_round_half_up_2dp(self):
+        # ROUND_HALF_UP: 0.005 → 0.01 (not banker's rounding 0.00)
+        self.assertEqual(self._round("0.005", 2), "0.01")
+
+    def test_round_down(self):
+        self.assertEqual(self._round("100.001", 2), "100.00")
+
+    def test_round_up(self):
+        self.assertEqual(self._round("100.006", 2), "100.01")
+
+    def test_zero_decimals(self):
+        self.assertEqual(self._round("99.7", 0), "100")
+
+    def test_comma_stripped(self):
+        self.assertEqual(self._round("1,234.567", 2), "1234.57")
+
+    def test_non_numeric_unchanged(self):
+        self.assertEqual(self._round("N/A", 2), "N/A")
+
+    def test_empty_unchanged(self):
+        self.assertEqual(self._round("", 2), "")
+
+    def test_negative_value(self):
+        self.assertEqual(self._round("-5.554", 2), "-5.55")
+
+    def test_large_decimals(self):
+        self.assertEqual(self._round("3.14159265", 4), "3.1416")
+
+
+class TestBuildToleranceMap(unittest.TestCase):
+    """TT-04 to TT-05."""
+
+    def _build(self, rows):
+        from data_compare.comparator.tolerance import build_tolerance_map
+        df = pd.DataFrame(rows, columns=[
+            "Prod File Name", "Dev File Name",
+            "Field Name", "Tolerance Level ( in decimal )"
+        ])
+        return build_tolerance_map(df)
+
+    def test_parses_correctly(self):
+        tol = self._build([
+            ("prod.csv", "dev.csv", "Price", 2),
+            ("prod.csv", "dev.csv", "Amount", 0),
+        ])
+        self.assertEqual(tol[("prod.csv", "dev.csv", "Price")], 2)
+        self.assertEqual(tol[("prod.csv", "dev.csv", "Amount")], 0)
+
+    def test_skips_blank_rows(self):
+        tol = self._build([
+            ("prod.csv", "dev.csv", "Price", 2),
+            ("", "", "", ""),
+            (None, None, None, None),
+        ])
+        self.assertEqual(len(tol), 1)
+
+    def test_skips_non_integer_tolerance(self):
+        tol = self._build([
+            ("prod.csv", "dev.csv", "Price", "abc"),
+        ])
+        self.assertEqual(len(tol), 0)
+
+    def test_empty_sheet_returns_empty(self):
+        from data_compare.comparator.tolerance import build_tolerance_map
+        self.assertEqual(build_tolerance_map(pd.DataFrame()), {})
+
+
+class TestResolvePairTolerance(unittest.TestCase):
+    """TT-06."""
+
+    def test_filters_to_correct_pair(self):
+        from data_compare.comparator.tolerance import resolve_pair_tolerance
+        tol_map = {
+            ("p.csv", "d.csv", "Price"):  2,
+            ("p.csv", "d.csv", "Amount"): 0,
+            ("x.csv", "y.csv", "Price"):  4,  # different pair – should be excluded
+        }
+        result = resolve_pair_tolerance(
+            tol_map, "p.csv", "d.csv",
+            ["Price", "Amount", "Name"],
+            ["Price", "Amount", "Name"],
+            ignore_set=set(),
+        )
+        self.assertIn("Price", result)
+        self.assertIn("Amount", result)
+        self.assertNotIn("x.csv", str(result))
+
+    def test_ignores_ignored_fields(self):
+        from data_compare.comparator.tolerance import resolve_pair_tolerance
+        tol_map = {("p.csv", "d.csv", "Price"): 2}
+        result = resolve_pair_tolerance(
+            tol_map, "p.csv", "d.csv",
+            ["Price"], ["Price"],
+            ignore_set={"Price"},  # Price is in ignore set
+        )
+        self.assertNotIn("Price", result)
+
+    def test_ignores_absent_column(self):
+        from data_compare.comparator.tolerance import resolve_pair_tolerance
+        tol_map = {("p.csv", "d.csv", "MissingCol"): 2}
+        result = resolve_pair_tolerance(
+            tol_map, "p.csv", "d.csv",
+            ["Price"], ["Price"],
+            ignore_set=set(),
+        )
+        self.assertNotIn("MissingCol", result)
+
+
+class TestToleranceInPipeline(unittest.TestCase):
+    """TT-07 to TT-08  Tolerance applied in full pipeline."""
+
+    def setUp(self):
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+
+    def tearDown(self):
+        self._tmp_obj.cleanup()
+
+    def _run(self, tol_map, prod_text, dev_text, prod_name, dev_name):
+        from data_compare.loaders.file_loader import load_any_to_csv
+        from data_compare.context.run_context import make_context
+        from data_compare.registry.capability_registry import CapabilityRegistry
+        conv = self.tmp / "c"; conv.mkdir(exist_ok=True)
+        (self.tmp / "p.csv").write_text(prod_text)
+        (self.tmp / "d.csv").write_text(dev_text)
+        pc = load_any_to_csv(self.tmp / "p.csv", conv)
+        dc = load_any_to_csv(self.tmp / "d.csv", conv)
+        ctx = make_context(
+            prod_csv_path=pc, dev_csv_path=dc,
+            prod_name=prod_name, dev_name=dev_name,
+            result_name="tol_test", report_root=self.tmp, keys=["ID"],
+            tol_map=tol_map,
+            capabilities_cfg={"comparison": True, "tolerance": True,
+                              "duplicate": False, "schema": False,
+                              "data_quality": False, "audit": False,
+                              "alerts": False, "plugins": False},
+        )
+        return CapabilityRegistry().run_pipeline(ctx)
+
+    def test_tolerance_makes_pass(self):
+        # 100.001 vs 100.003 → both round to 100.00 at 2dp → PASS
+        ctx = self._run(
+            {("p.csv", "d.csv", "Price"): 2},
+            "ID,Price\n1,100.001\n",
+            "ID,Price\n1,100.003\n",
+            "p.csv", "d.csv",
+        )
+        self.assertEqual(ctx["results"]["matched_passed"], 1)
+        self.assertEqual(ctx["results"]["matched_failed"], 0)
+
+    def test_no_tolerance_makes_fail(self):
+        # Same values but tolerance disabled → FAIL (different strings)
+        ctx = self._run(
+            {},  # no tolerance
+            "ID,Price\n1,100.001\n",
+            "ID,Price\n1,100.003\n",
+            "p.csv", "d.csv",
+        )
+        self.assertEqual(ctx["results"]["matched_failed"], 1)
+        self.assertEqual(ctx["results"]["matched_passed"], 0)
+
+
+class TestConfigSchema(unittest.TestCase):
+    """TT-09 to TT-13  Config validation."""
+
+    def _base_cfg(self):
+        return {
+            "input_sheet":  "/tmp/fake_input.xlsx",
+            "report_root":  "/tmp/fake_reports",
+            "email_to":     "test@example.com",
+            "log_level":    "INFO",
+            "smtp_port":    587,
+            "capabilities": {
+                "comparison": True, "tolerance": True, "duplicate": True,
+                "schema": True, "data_quality": True, "audit": True,
+                "alerts": False, "plugins": False,
+            },
+            "alert_rules":          [],
+            "data_quality_checks":  {"null_rate": True, "distinct_count": True,
+                                     "type_inference": True, "numeric_stats": True},
+        }
+
+    def test_valid_config_passes(self):
+        from data_compare.config.config_schema import validate_config
+        cfg = self._base_cfg()
+        result = validate_config(cfg)
+        self.assertEqual(result["log_level"], "INFO")
+
+    def test_invalid_log_level(self):
+        from data_compare.config.config_schema import validate_config, ConfigError
+        cfg = self._base_cfg()
+        cfg["log_level"] = "VERBOSE"
+        with self.assertRaises(ConfigError) as cm:
+            validate_config(cfg)
+        self.assertIn("log_level", str(cm.exception))
+
+    def test_missing_required_key(self):
+        from data_compare.config.config_schema import validate_config, ConfigError
+        cfg = self._base_cfg()
+        del cfg["email_to"]
+        with self.assertRaises(ConfigError) as cm:
+            validate_config(cfg)
+        self.assertIn("email_to", str(cm.exception))
+
+    def test_invalid_smtp_port(self):
+        from data_compare.config.config_schema import validate_config, ConfigError
+        cfg = self._base_cfg()
+        cfg["smtp_port"] = -1
+        with self.assertRaises(ConfigError) as cm:
+            validate_config(cfg)
+        self.assertIn("smtp_port", str(cm.exception))
+
+    def test_invalid_alert_rule_missing_metric(self):
+        from data_compare.config.config_schema import validate_config, ConfigError
+        cfg = self._base_cfg()
+        cfg["alert_rules"] = [{"operator": ">", "threshold": 0}]  # missing 'metric'
+        with self.assertRaises(ConfigError) as cm:
+            validate_config(cfg)
+        self.assertIn("metric", str(cm.exception))
+
+    def test_multiple_errors_reported_together(self):
+        from data_compare.config.config_schema import validate_config, ConfigError
+        cfg = self._base_cfg()
+        cfg["log_level"]  = "BAD"
+        cfg["smtp_port"]  = -1
+        del cfg["email_to"]
+        with self.assertRaises(ConfigError) as cm:
+            validate_config(cfg)
+        msg = str(cm.exception)
+        # All three errors in one exception
+        self.assertIn("log_level", msg)
+        self.assertIn("smtp_port", msg)
+        self.assertIn("email_to",  msg)
+
+    def test_unknown_capabilities_pass_through(self):
+        from data_compare.config.config_schema import validate_config
+        cfg = self._base_cfg()
+        cfg["capabilities"]["my_custom_cap"] = True
+        result = validate_config(cfg)
+        self.assertIn("my_custom_cap", result["capabilities"])
+
+
+class TestValidateBatchRow(unittest.TestCase):
+    """TT-12  validate_batch_row raises on missing file."""
+
+    def test_raises_on_missing_prod(self):
+        from data_compare.config.config_schema import validate_batch_row, ConfigError
+        with tempfile.TemporaryDirectory() as tmp:
+            # Create dev but not prod
+            dev_path = Path(tmp) / "dev.csv"
+            dev_path.write_text("ID\n1\n")
+            with self.assertRaises(ConfigError) as cm:
+                validate_batch_row(
+                    base_path=tmp,
+                    prod_name="nonexistent_prod.csv",
+                    dev_name="dev.csv",
+                    result_name="TestRun",
+                    keys=["ID"],
+                    batch_num=1,
+                )
+            self.assertIn("PROD file not found", str(cm.exception))
+
+    def test_raises_on_empty_result_name(self):
+        from data_compare.config.config_schema import validate_batch_row, ConfigError
+        with self.assertRaises(ConfigError) as cm:
+            validate_batch_row("", "prod.csv", "dev.csv", "", [], batch_num=1)
+        self.assertIn("Result Report Name", str(cm.exception))
+
+
+class TestComparisonJob(unittest.TestCase):
+    """TT-14 to TT-16  ComparisonJob lifecycle."""
+
+    def setUp(self):
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+        (self.tmp / "p.csv").write_text("ID,V\n1,A\n2,B\n")
+        (self.tmp / "d.csv").write_text("ID,V\n1,A\n2,X\n")
+
+    def tearDown(self):
+        self._tmp_obj.cleanup()
+
+    def _make_job(self, max_retries=0, **kwargs):
+        from data_compare.jobs.comparison_job import ComparisonJob
+        return ComparisonJob(
+            prod_path=self.tmp / "p.csv",
+            dev_path=self.tmp / "d.csv",
+            prod_name="p.csv",
+            dev_name="d.csv",
+            result_name="job_test",
+            report_root=self.tmp / "reports",
+            keys=["ID"],
+            capabilities_cfg={"comparison": True, "tolerance": False,
+                              "duplicate": False, "schema": False,
+                              "data_quality": False, "audit": False,
+                              "alerts": False, "plugins": False},
+            max_retries=max_retries,
+            **kwargs,
+        )
+
+    def test_job_succeeds(self):
+        job    = self._make_job()
+        result = job.run()
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.status, "SUCCESS")
+        self.assertEqual(result.attempts, 1)
+
+    def test_job_summary_has_correct_counts(self):
+        job    = self._make_job()
+        result = job.run()
+        s = result.to_summary_dict()
+        self.assertEqual(s["MatchedFailed"], 1)  # ID=2: B vs X
+        self.assertEqual(s["MatchedPassed"], 1)  # ID=1: A == A
+
+    def test_job_retries_bad_path(self):
+        from data_compare.jobs.comparison_job import ComparisonJob
+        job = ComparisonJob(
+            prod_path=self.tmp / "nonexistent.csv",
+            dev_path=self.tmp / "d.csv",
+            prod_name="nonexistent.csv",
+            dev_name="d.csv",
+            result_name="fail_job",
+            report_root=self.tmp / "reports",
+            max_retries=2,
+            retry_delay_s=0.01,   # fast for testing
+        )
+        result = job.run()
+        self.assertFalse(result.succeeded)
+        self.assertEqual(result.status, "FAILED")
+        self.assertEqual(result.attempts, 3)   # initial + 2 retries
+        self.assertIsNotNone(result.error)
+
+    def test_job_id_is_set(self):
+        job = self._make_job(job_id="test-job-123")
+        self.assertEqual(job.job_id, "test-job-123")
+        result = job.run()
+        self.assertEqual(result.job_id, "test-job-123")
+
+    def test_job_result_summary_dict(self):
+        result = self._make_job().run()
+        d = result.to_summary_dict()
+        self.assertIn("ResultName", d)
+        self.assertIn("ProdFile",   d)
+        self.assertIn("JobID",      d)
+
+
+class TestLogger(unittest.TestCase):
+    """TT-17 to TT-19  Logging upgrades."""
+
+    def setUp(self):
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+
+    def tearDown(self):
+        self._tmp_obj.cleanup()
+        # Reset logger state for other tests
+        import data_compare.utils.logger as _lg
+        _lg._file_handler = None
+        _lg._json_handler = None
+
+    def test_file_log_created(self):
+        import logging
+        import data_compare.utils.logger as _lg
+        _lg._file_handler = None
+        _lg._json_handler = None
+        _lg.configure_logging(
+            level=logging.DEBUG,
+            log_dir=self.tmp,
+            enable_file=True,
+            enable_json=True,
+        )
+        lg = _lg.get_logger("test_file_log")
+        lg.info("test message")
+        log_path = self.tmp / "data_compare.log"
+        self.assertTrue(log_path.exists())
+        self.assertIn("test message", log_path.read_text())
+
+    def test_json_log_parseable(self):
+        import logging
+        import data_compare.utils.logger as _lg
+        _lg._file_handler = None
+        _lg._json_handler = None
+        _lg.configure_logging(
+            level=logging.DEBUG,
+            log_dir=self.tmp,
+            enable_json=True,
+            enable_file=False,
+        )
+        lg = _lg.get_logger("test_json_log")
+        lg.info("json_test_message")
+        json_path = self.tmp / "data_compare.json.log"
+        self.assertTrue(json_path.exists())
+        lines = [l for l in json_path.read_text().splitlines() if l.strip()]
+        self.assertGreater(len(lines), 0)
+        for line in lines:
+            record = json.loads(line)   # must be valid JSON
+            self.assertIn("timestamp", record)
+            self.assertIn("level",     record)
+            self.assertIn("message",   record)
+
+    def test_run_id_in_json(self):
+        import logging
+        import data_compare.utils.logger as _lg
+        _lg._file_handler = None
+        _lg._json_handler = None
+        _lg.set_run_id("test-run-xyz")
+        _lg.configure_logging(
+            level=logging.DEBUG,
+            log_dir=self.tmp,
+            enable_json=True,
+            enable_file=False,
+        )
+        _lg.get_logger("test_run_id").info("run_id_check")
+        json_path = self.tmp / "data_compare.json.log"
+        lines = [l for l in json_path.read_text().splitlines() if l.strip()]
+        records = [json.loads(l) for l in lines]
+        run_ids = {r.get("run_id") for r in records}
+        self.assertIn("test-run-xyz", run_ids)
+
+
+class TestRegistryExtensions(unittest.TestCase):
+    """TT-20  Custom capability appended after built-ins."""
+
+    def test_custom_cap_runs_last(self):
+        from data_compare.capabilities.base import BaseCapability
+        from data_compare.registry.capability_registry import CapabilityRegistry
+        from data_compare.context.run_context import make_context
+
+        execution_order = []
+
+        class TrackingCap(BaseCapability):
+            NAME = "tracker"
+            def execute(self, ctx):
+                execution_order.append("tracker")
+                ctx["plugin_outputs"]["tracker"] = "ran"
+                return ctx
+
+        reg = CapabilityRegistry()
+        reg.register(TrackingCap())
+        caps_list = reg.list_capabilities()
+
+        # Custom cap must come after all built-ins
+        builtin_idxs = [i for i, n in enumerate(caps_list) if n != "tracker"]
+        tracker_idx  = caps_list.index("tracker")
+        self.assertGreater(tracker_idx, max(builtin_idxs))
+
+        # Actually run it
+        ctx = make_context(capabilities_cfg={"tracker": True})
+        ctx = reg.run_pipeline(ctx, override_order=["tracker"])
+        self.assertEqual(ctx["plugin_outputs"].get("tracker"), "ran")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
