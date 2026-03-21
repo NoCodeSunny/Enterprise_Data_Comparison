@@ -124,6 +124,92 @@ def _print_console_summary(summaries: List[Dict]) -> None:
 #  PUBLIC API
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _run_yaml_batches(
+    cfg: dict,
+    batches: list,
+    registry,
+    run_start: float,
+) -> list:
+    """
+    Execute comparisons defined directly in the YAML config under 'batches:'.
+    No InputSheet required — useful for CLI usage and local development.
+
+    Each batch entry supports:
+        prod_path:   path to PROD file
+        dev_path:    path to DEV file
+        result_name: output name (optional)
+        keys:        list of key columns (optional)
+        ignore_fields: list of columns to ignore (optional)
+        capabilities: dict of capability overrides (optional)
+    """
+    from pathlib import Path as _Path
+    from data_compare.jobs.comparison_job import ComparisonJob
+    from data_compare.utils.helpers import ensure_dir
+
+    report_root = _Path(cfg["report_root"])
+    ensure_dir(report_root)
+    summaries = []
+
+    for i, batch in enumerate(batches, 1):
+        prod_path    = _Path(batch.get("prod_path", "")).expanduser()
+        dev_path     = _Path(batch.get("dev_path",  "")).expanduser()
+        result_name  = batch.get("result_name") or f"batch_{i:03d}"
+        keys         = batch.get("keys", [])
+        ignore       = batch.get("ignore_fields", [])
+        tol_map      = {}
+
+        # Validate files exist
+        if not prod_path.exists():
+            logger.error(f"  Batch {i}: PROD file not found: {prod_path}")
+            summaries.append({"ResultName": result_name, "Error": f"PROD not found: {prod_path}"})
+            continue
+        if not dev_path.exists():
+            logger.error(f"  Batch {i}: DEV file not found: {dev_path}")
+            summaries.append({"ResultName": result_name, "Error": f"DEV not found: {dev_path}"})
+            continue
+
+        # Merge global capability config with per-batch overrides
+        caps = {**cfg.get("capabilities", {}), **batch.get("capabilities", {})}
+
+        job_root = report_root / result_name
+        ensure_dir(job_root)
+
+        logger.info(f"  Batch {i}/{len(batches)}: {prod_path.name} vs {dev_path.name}")
+
+        cjob = ComparisonJob(
+            prod_path    = prod_path,
+            dev_path     = dev_path,
+            prod_name    = prod_path.name,
+            dev_name     = dev_path.name,
+            result_name  = result_name,
+            report_root  = job_root,
+            keys         = keys,
+            ignore_fields= ignore,
+            tol_map      = tol_map,
+            max_retries  = cfg.get("max_retries", 0),
+            capabilities_cfg = caps if caps else None,
+            config       = {"use_spark": cfg.get("use_spark", False)},
+        )
+
+        result = cjob.run(registry=registry)
+        summary = result.to_summary_dict() if result.succeeded else {
+            "ResultName": result_name,
+            "Error": result.error or "Job failed",
+        }
+        summaries.append(summary)
+
+        if result.succeeded:
+            logger.info(f"    ✅ {result_name}: passed={result.summary.get('MatchedPassed',0)} "
+                       f"failed={result.summary.get('MatchedFailed',0)}")
+        else:
+            logger.error(f"    ❌ {result_name}: {result.error}")
+
+    elapsed = time.perf_counter() - run_start
+    logger.info(f"  Run complete: {len(summaries)} batch(es) in {elapsed:.1f}s")
+    return summaries
+
+
+
 def run_comparison(
     config_path: Optional[str] = None,
     registry: Optional[CapabilityRegistry] = None,
@@ -191,9 +277,20 @@ def run_comparison(
     ensure_dir(report_root)
     ensure_dir(converted_root)
 
+    # ── YAML batches shortcut (no InputSheet needed) ──────────────────────
+    # If the config has a 'batches' list, run directly without InputSheet.
+    yaml_batches = cfg.get("batches", [])
+    if yaml_batches:
+        logger.info(f"  Mode: YAML batches ({len(yaml_batches)} batch(es) defined)")
+        return _run_yaml_batches(cfg, yaml_batches, registry, run_start)
+
     if not input_sheet.exists():
         logger.error(f"❌ Input sheet not found: {input_sheet}")
-        raise FileNotFoundError(f"Input sheet not found: {input_sheet}")
+        logger.error("  Tip: define 'batches:' in your YAML config to run without InputSheet")
+        raise FileNotFoundError(
+            f"Input sheet not found: {input_sheet}\n"
+            "Tip: add a 'batches:' section to your YAML config to run without an InputSheet."
+        )
 
     # ── parse InputSheet ───────────────────────────────────────────────────
     logger.info("  Parsing InputSheet …")

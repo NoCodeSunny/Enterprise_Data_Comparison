@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-data_compare.main
+edcp.main
 ─────────────────
 CLI entry point.
 
 Usage
 -----
-    python -m data_compare.main
-    python -m data_compare.main --config config/config.yaml
-    python -m data_compare.main --config config/config.yaml --capabilities comparison,data_quality
-    python -m data_compare.main --list-capabilities
+    python -m edcp
+    python -m edcp --config config/config.yaml
+    python -m edcp --config config/config.yaml --capabilities comparison,data_quality
+    python -m edcp --list-capabilities
 
 Flags
 -----

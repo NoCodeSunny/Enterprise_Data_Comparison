@@ -2,7 +2,7 @@
 """DataComparePro Flask application — serves both legacy /api/* and new /api/v1/*."""
 from __future__ import annotations
 import io, json, os, queue, sqlite3, sys, threading, traceback, uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -118,7 +118,7 @@ def _lq(jid):
 def _log(jid, msg, lvl="INFO"):
     import logging as _logging
     _logger = _logging.getLogger("edcp.app")
-    ts = datetime.utcnow().isoformat()
+    ts = datetime.now(timezone.utc).isoformat()
     try:
         with _db() as c:
             c.execute("INSERT INTO job_logs(job_id,ts,level,message) VALUES(?,?,?,?)",(jid,ts,lvl,msg))
@@ -133,7 +133,7 @@ def _log(jid, msg, lvl="INFO"):
 
 def _upd(jid, **kw):
     if not kw: return
-    kw["updated_at"] = datetime.utcnow().isoformat()
+    kw["updated_at"] = datetime.now(timezone.utc).isoformat()
     with _db() as c:
         c.execute(f"UPDATE jobs SET {','.join(f'{k}=?' for k in kw)} WHERE job_id=?",
                   list(kw.values())+[jid]); c.commit()
@@ -194,7 +194,7 @@ def _run_job(jid, cfg):
 @app.route("/api/health")
 def health():
     return jsonify({"status":"ok","version":"3.0.0","platform":"DataComparePro",
-                    "timestamp":datetime.utcnow().isoformat()})
+                    "timestamp":datetime.now(timezone.utc).isoformat()})
 
 @app.route("/api/detect-columns",methods=["POST"])
 def detect_cols():
@@ -233,7 +233,7 @@ def submit_run():
     for key in ("prod_path","dev_path"):
         path_err = _check_path(d[key])
         if path_err: return path_err
-    jid=uuid.uuid4().hex[:12]; now=datetime.utcnow().isoformat()
+    jid=uuid.uuid4().hex[:12]; now=datetime.now(timezone.utc).isoformat()
     rn=d.get("result_name") or f"Compare_{jid[:8]}"
     with _db() as c:
         c.execute("""INSERT INTO jobs(job_id,status,created_at,updated_at,prod_path,dev_path,

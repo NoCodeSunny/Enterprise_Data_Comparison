@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-data_compare.cli
+edcp.cli
 ─────────────────
 Full CLI interface for the data_compare framework.
 
@@ -35,8 +35,8 @@ Usage examples
     python -m data_compare version
 
 This module is the entry point for:
-    python -m data_compare  (via __main__.py)
-    data-compare            (via setup.py console_scripts)
+    python -m edcp  (via __main__.py)
+    edcp                    (via pyproject.toml console_scripts)
 """
 
 from __future__ import annotations
@@ -51,8 +51,8 @@ from typing import List, Optional
 
 def _get_version() -> str:
     try:
-        import data_compare
-        return getattr(data_compare, "__version__", "3.0.0")
+        import edcp
+        return getattr(edcp, "__version__", "3.0.0")
     except Exception:
         return "3.0.0"
 
@@ -60,7 +60,7 @@ def _get_version() -> str:
 # ── subcommand handlers ───────────────────────────────────────────────────────
 
 def cmd_version(args: argparse.Namespace) -> int:
-    print(f"data_compare  v{_get_version()}")
+    print(f"DataComparePro (edcp) v{_get_version()}")
     return 0
 
 
@@ -194,10 +194,10 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m data_compare run config/config.yaml
-  python -m data_compare run config/config.yaml --capabilities comparison,schema
-  python -m data_compare run config/config.yaml --workers 4 --fail-on-error
-  python -m data_compare validate config/config.yaml
+  python -m edcp run config/config.yaml
+  python -m edcp run config/config.yaml --capabilities comparison,schema
+  python -m edcp run config/config.yaml --workers 4 --fail-on-error
+  python -m edcp validate config/config.yaml
   python -m data_compare list-caps
   python -m data_compare version
         """,

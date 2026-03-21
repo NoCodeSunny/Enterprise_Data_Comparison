@@ -63,6 +63,31 @@ DataComparePro_v3/
 pip install flask pandas openpyxl pyyaml psutil --break-system-packages
 ```
 
+## Quick Start — CLI
+
+```bash
+# Run comparison from YAML config (no InputSheet needed)
+cd edcp_ui
+PYTHONPATH=../edcp:. python3 start.py   # start the UI
+
+# Or use CLI directly
+cd edcp
+PYTHONPATH=. python3 -m edcp run config/config.yaml
+PYTHONPATH=. python3 -m edcp list-caps
+PYTHONPATH=. python3 -m edcp version
+```
+
+### Example YAML config (batches: mode)
+
+```yaml
+report_root: /path/to/reports
+batches:
+  - prod_path: /path/to/prod.csv
+    dev_path:  /path/to/dev.csv
+    result_name: my_comparison
+    keys: [ID]
+```
+
 ## Running Tests
 
 ```bash

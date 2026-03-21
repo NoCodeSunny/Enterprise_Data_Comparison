@@ -93,7 +93,7 @@ def configure_logging(
         log_dir.mkdir(parents=True, exist_ok=True)
 
         if enable_file and _file_handler is None:
-            txt_path = log_dir / "data_compare.log"
+            txt_path = log_dir / "edcp.log"
             h2 = logging.handlers.RotatingFileHandler(
                 txt_path, maxBytes=10*1024*1024, backupCount=5, encoding="utf-8")
             h2.setLevel(level)
@@ -102,7 +102,7 @@ def configure_logging(
             _file_handler = h2
 
         if enable_json and _json_handler is None:
-            json_path = log_dir / "data_compare.json.log"
+            json_path = log_dir / "edcp.json.log"
             h3 = logging.FileHandler(json_path, encoding="utf-8")
             h3.setLevel(level)
             h3.setFormatter(_JsonFormatter())

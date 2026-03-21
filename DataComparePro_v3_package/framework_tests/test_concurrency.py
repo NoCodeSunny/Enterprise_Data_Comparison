@@ -83,7 +83,7 @@ class TCON04_Parallel_Logging_Integrity(unittest.TestCase):
         for t in threads: t.start()
         for t in threads: t.join()
         self.assertEqual(len(errors), 0)
-        log_path = self.t/"data_compare.log"
+        log_path = self.t/"edcp.log"
         self.assertTrue(log_path.exists())
 
 class TCON05_Context_Isolation_Stress(unittest.TestCase):

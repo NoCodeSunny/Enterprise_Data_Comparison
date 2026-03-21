@@ -233,7 +233,7 @@ class TT33_JSON_Parseable(unittest.TestCase):
         _lg._file_handler=None; _lg._json_handler=None
         _lg.configure_logging(level=logging.DEBUG,log_dir=self.t,enable_json=True,enable_file=False)
         _lg.get_logger("TT33").info("json_test")
-        jp=self.t/"data_compare.json.log"; self.assertTrue(jp.exists())
+        jp=self.t/"edcp.json.log"; self.assertTrue(jp.exists())
         for l in [x for x in jp.read_text().splitlines() if x.strip()]:
             r=json.loads(l); self.assertIn("timestamp",r); self.assertIn("message",r)
 class TT34_RunID_JSON(unittest.TestCase):
@@ -245,7 +245,7 @@ class TT34_RunID_JSON(unittest.TestCase):
         _lg.set_run_id("test-run-abc")
         _lg.configure_logging(level=logging.DEBUG,log_dir=self.t,enable_json=True,enable_file=False)
         _lg.get_logger("TT34").info("run_id_check")
-        records=[json.loads(l) for l in (self.t/"data_compare.json.log").read_text().splitlines() if l.strip()]
+        records=[json.loads(l) for l in (self.t/"edcp.json.log").read_text().splitlines() if l.strip()]
         self.assertIn("test-run-abc",{r.get("run_id") for r in records})
 class TT35_FileLog(unittest.TestCase):
     def setUp(self): self._d=tempfile.TemporaryDirectory(); self.t=Path(self._d.name)
@@ -255,7 +255,7 @@ class TT35_FileLog(unittest.TestCase):
         _lg._file_handler=None; _lg._json_handler=None
         _lg.configure_logging(level=logging.DEBUG,log_dir=self.t,enable_file=True,enable_json=False)
         _lg.get_logger("TT35").info("file_log_test")
-        lp=self.t/"data_compare.log"; self.assertTrue(lp.exists()); self.assertIn("file_log_test",lp.read_text())
+        lp=self.t/"edcp.log"; self.assertTrue(lp.exists()); self.assertIn("file_log_test",lp.read_text())
 class TT36_CustomCap(unittest.TestCase):
     def test_TT36(self):
         from data_compare.capabilities.base import BaseCapability

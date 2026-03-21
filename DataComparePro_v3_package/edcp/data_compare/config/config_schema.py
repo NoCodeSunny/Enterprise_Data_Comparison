@@ -264,15 +264,18 @@ def validate_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
     # ── path existence check (warning only – file may be on remote mount) ──────
     if "input_sheet" in validated and validated.get("input_sheet"):
-        p = Path(str(validated["input_sheet"]))
-        if not p.exists():
-            import logging
-            _warn_logger = logging.getLogger("DataComparator.config")
-            _warn_logger.warning(
-                f"input_sheet path does not exist: {p}  "
-                f"(will fail at runtime if still absent)"
-            )
-            # NOT added to errors – path may be on a network mount not yet accessible
+        # Only warn about missing InputSheet when not running in YAML-batches mode
+        # (batches: section bypasses InputSheet entirely)
+        if not validated.get("batches"):
+            p = Path(str(validated["input_sheet"]))
+            if not p.exists():
+                import logging
+                _warn_logger = logging.getLogger("DataComparator.config")
+                _warn_logger.warning(
+                    f"input_sheet path does not exist: {p}  "
+                    f"(will fail at runtime if still absent)"
+                )
+                # NOT added to errors – path may be on a network mount not yet accessible
 
     # ── collect all errors ────────────────────────────────────────────────────
     if errors:

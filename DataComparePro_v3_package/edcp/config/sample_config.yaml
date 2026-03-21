@@ -1,0 +1,51 @@
+# DataComparePro (edcp) v3.0.0 — Sample Configuration
+# =====================================================
+# Run with: python -m edcp run config/sample_config.yaml
+#
+# This file demonstrates YAML-batches mode — no InputSheet.xlsx required.
+
+# Output directory for reports
+report_root: ~/DataComparePro/Reports
+
+# Log level: DEBUG | INFO | WARNING | ERROR
+log_level: INFO
+
+# ── Direct batch definitions (no InputSheet needed) ──────────────────────────
+batches:
+  - prod_path:   /path/to/prod_file.csv
+    dev_path:    /path/to/dev_file.csv
+    result_name: MyComparison
+    keys:
+      - ID            # Primary key column(s) for row alignment
+    ignore_fields:
+      - LastModified  # Columns to exclude from comparison
+    capabilities:
+      comparison:   true
+      tolerance:    false
+      duplicate:    true
+      schema:       true
+      data_quality: false
+      audit:        false
+      alerts:       false
+      plugins:      false
+
+# ── Global capability defaults (overridden per-batch above) ──────────────────
+capabilities:
+  comparison:   true
+  tolerance:    true
+  duplicate:    true
+  schema:       true
+  data_quality: true
+  audit:        true
+  alerts:       false
+  plugins:      false
+
+# ── Optional: Alert rules ────────────────────────────────────────────────────
+# alerts:
+#   enabled: true
+# alert_rules:
+#   - metric: MatchedFailed
+#     operator: ">"
+#     threshold: 0
+#     level: WARNING
+#     message: "Differences found"
